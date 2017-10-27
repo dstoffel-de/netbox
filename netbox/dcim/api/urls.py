@@ -29,6 +29,12 @@ router.register(r'rack-roles', views.RackRoleViewSet)
 router.register(r'racks', views.RackViewSet)
 router.register(r'rack-reservations', views.RackReservationViewSet)
 
+# Rack Furniture Types
+router.register(r'rack-furniture-types', views.RackFurnitureTypeViewSet)
+
+# Rack Furniture
+router.register(r'rack-furniture', views.RackFurnitureViewSet)
+
 # Device types
 router.register(r'manufacturers', views.ManufacturerViewSet)
 router.register(r'device-types', views.DeviceTypeViewSet)

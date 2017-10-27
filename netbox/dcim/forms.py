@@ -24,8 +24,9 @@ from .models import (
     ConsolePortTemplate, ConsoleServerPort, ConsoleServerPortTemplate, Device, DeviceRole, DeviceType, Interface,
     IFACE_FF_CHOICES, IFACE_FF_LAG, IFACE_ORDERING_CHOICES, InterfaceConnection, InterfaceTemplate, Manufacturer,
     InventoryItem, Platform, PowerOutlet, PowerOutletTemplate, PowerPort, PowerPortTemplate, RACK_FACE_CHOICES,
-    RACK_TYPE_CHOICES, RACK_WIDTH_CHOICES, Rack, RackGroup, RackReservation, RackRole, RACK_WIDTH_19IN, RACK_WIDTH_23IN,
-    Region, Site, STATUS_CHOICES, SUBDEVICE_ROLE_CHILD, SUBDEVICE_ROLE_PARENT, SUBDEVICE_ROLE_CHOICES,
+    RACK_TYPE_CHOICES, RACK_WIDTH_CHOICES, Rack, RackGroup, RackFurniture, RackFurnitureType, RackReservation,
+    RackRole, RACK_WIDTH_19IN, RACK_WIDTH_23IN, Region, Site, STATUS_CHOICES, SUBDEVICE_ROLE_CHILD,
+    SUBDEVICE_ROLE_PARENT, SUBDEVICE_ROLE_CHOICES,
 )
 
 
@@ -433,6 +434,287 @@ class ManufacturerCSVForm(forms.ModelForm):
             'name': 'Manufacturer name',
             'slug': 'URL-friendly slug',
         }
+
+
+#
+# Rack Furniture Types
+#
+
+class RackFurnitureTypeForm(BootstrapMixin, CustomFieldForm):
+    slug = SlugField(slug_source='name')
+    manufacturer = forms.ModelChoiceField(
+        queryset=Manufacturer.objects.all(),
+        to_field_name='name',
+        required=False,
+        help_text='Manufacturer name',
+        error_messages={
+            'invalid_choice': 'Manufacturer not found.',
+        }
+    )
+
+    class Meta:
+        model = RackFurnitureType
+        fields = [
+            'name', 'manufacturer', 'model', 'slug', 'part_number', 'u_height', 'is_full_depth', 'comments',
+            'color'
+        ]
+
+
+class RackFurnitureTypeCSVForm(forms.ModelForm):
+    manufacturer = forms.ModelChoiceField(
+        queryset=Manufacturer.objects.all(),
+        to_field_name='name',
+        required=False,
+        help_text='Manufacturer name',
+        error_messages={
+            'invalid_choice': 'Manufacturer not found.',
+        }
+    )
+
+    class Meta:
+        model = RackFurnitureType
+        fields = [
+            'name', 'manufacturer', 'model', 'slug', 'part_number', 'u_height', 'is_full_depth', 'comments',
+            'color'
+        ]
+        help_texts = {
+            'model': 'Model name',
+            'slug': 'URL-friendly slug',
+            'color': 'RGB color in hexadecimal (e.g. 00ff00)'
+        }
+
+
+class RackFurnitureTypeBulkEditForm(BootstrapMixin, CustomFieldBulkEditForm):
+    pk = forms.ModelMultipleChoiceField(queryset=RackFurnitureType.objects.all(), widget=forms.MultipleHiddenInput)
+    manufacturer = forms.ModelChoiceField(queryset=Manufacturer.objects.all(), required=False)
+    u_height = forms.IntegerField(min_value=1, required=False)
+    is_full_depth = forms.NullBooleanField(required=False, widget=BulkEditNullBooleanSelect, label='Is full depth')
+
+    class Meta:
+        nullable_fields = []
+
+
+class RackFurnitureTypeFilterForm(BootstrapMixin, CustomFieldFilterForm):
+    model = RackFurnitureType
+    q = forms.CharField(required=False, label='Search')
+    manufacturer = FilterChoiceField(
+        queryset=Manufacturer.objects.annotate(filter_count=Count('rack_furniture_types')),
+        to_field_name='slug'
+    )
+
+
+#
+# Rack Furniture
+#
+
+class RackFurnitureForm(BootstrapMixin, TenancyForm, CustomFieldForm):
+    site = forms.ModelChoiceField(
+        queryset=Site.objects.all(),
+        widget=forms.Select(
+            attrs={'filter-for': 'rack'}
+        )
+    )
+    rack = ChainedModelChoiceField(
+        queryset=Rack.objects.all(),
+        chains=(
+            ('site', 'site'),
+        ),
+        widget=APISelect(
+            api_url='/api/dcim/racks/?site_id={{site}}',
+            display_field='display_name',
+            attrs={'filter-for': 'position'}
+        )
+    )
+    position = forms.TypedChoiceField(
+        help_text="The lowest-numbered unit occupied by the device",
+        widget=APISelect(
+            api_url='/api/dcim/racks/{{rack}}/units/?face={{face}}',
+            disabled_indicator='rack_furniture'
+        )
+    )
+    rack_furniture_type = forms.ModelChoiceField(
+        queryset=RackFurnitureType.objects.all(),
+        label='Rack furniture type',
+    )
+    comments = CommentField()
+
+    class Meta:
+        model = RackFurniture
+        fields = [
+            'rack_furniture_type', 'serial', 'asset_tag', 'site', 'rack', 'position', 'face', 'status',
+            'tenant_group', 'tenant', 'comments',
+        ]
+        widgets = {
+            'face': forms.Select(attrs={'filter-for': 'position'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+
+        # Initialize helper selectors
+        instance = kwargs.get('instance')
+        # Using hasattr() instead of "is not None" to avoid RelatedObjectDoesNotExist on required field
+        if instance and hasattr(instance, 'rack_furniture_type'):
+            initial = kwargs.get('initial', {}).copy()
+            kwargs['initial'] = initial
+
+        super(RackFurnitureForm, self).__init__(*args, **kwargs)
+
+        if self.instance.pk:
+
+            # If editing an existing piece of furniture, exclude it from the list of occupied rack units.
+            # This ensures that a piece of furniture can be flipped from one face to another.
+            self.fields['position'].widget.attrs['api-url'] += '&exclude_furniture={}'.format(self.instance.pk)
+
+        # Rack position
+        pk = self.instance.pk if self.instance.pk else None
+        try:
+            if self.is_bound and self.data.get('rack') and str(self.data.get('face')):
+                position_choices = Rack.objects.get(pk=self.data['rack'])\
+                    .get_rack_units(face=self.data.get('face'), exclude_furniture=pk)
+            elif self.initial.get('rack') and str(self.initial.get('face')):
+                position_choices = Rack.objects.get(pk=self.initial['rack'])\
+                    .get_rack_units(face=self.initial.get('face'), exclude_furniture=pk)
+            else:
+                position_choices = []
+        except Rack.DoesNotExist:
+            position_choices = []
+        self.fields['position'].choices = [('', '---------')] + [
+            (p['id'], {
+                'label': p['name'],
+                'disabled': bool(p['furniture'] and p['id'] != self.initial.get('position')),
+            }) for p in position_choices
+        ]
+
+
+class RackFurnitureCSVForm(forms.ModelForm):
+    tenant = forms.ModelChoiceField(
+        queryset=Tenant.objects.all(),
+        required=False,
+        to_field_name='name',
+        help_text='Name of assigned tenant',
+        error_messages={
+            'invalid_choice': 'Tenant not found.',
+        }
+    )
+    manufacturer = forms.ModelChoiceField(
+        queryset=Manufacturer.objects.all(),
+        to_field_name='name',
+        help_text='Rack furniture type manufacturer',
+        error_messages={
+            'invalid_choice': 'Invalid manufacturer.',
+        }
+    )
+    model_name = forms.CharField(
+        help_text='Rack furniture type model name'
+    )
+    status = CSVChoiceField(
+        choices=STATUS_CHOICES,
+        help_text='Operational status of rack furniture'
+    )
+    site = forms.ModelChoiceField(
+        queryset=Site.objects.all(),
+        to_field_name='name',
+        help_text='Name of parent site',
+        error_messages={
+            'invalid_choice': 'Invalid site name.',
+        }
+    )
+    rack_group = forms.CharField(
+        required=False,
+        help_text='Parent rack\'s group (if any)'
+    )
+    rack_name = forms.CharField(
+        help_text='Name of parent rack'
+    )
+    face = CSVChoiceField(
+        choices=RACK_FACE_CHOICES,
+        help_text='Mounted rack face'
+    )
+
+    class Meta:
+        model = RackFurniture
+        fields = [
+            'tenant', 'manufacturer', 'model_name', 'serial', 'asset_tag', 'status', 'site',
+            'rack_group', 'rack_name', 'position', 'face',
+        ]
+
+    def clean(self):
+
+        super(RackFurnitureCSVForm, self).clean()
+
+        manufacturer = self.cleaned_data.get('manufacturer')
+        model_name = self.cleaned_data.get('model_name')
+        site = self.cleaned_data.get('site')
+        rack_group = self.cleaned_data.get('rack_group')
+        rack_name = self.cleaned_data.get('rack_name')
+
+        # Validate device type
+        if manufacturer and model_name:
+            try:
+                self.instance.device_type = RackFurnitureType.objects.get(manufacturer=manufacturer, model=model_name)
+            except RackFurnitureType.DoesNotExist:
+                raise forms.ValidationError("Rack furniture type {} {} not found".format(manufacturer, model_name))
+
+        # Validate rack
+        if site and rack_group and rack_name:
+            try:
+                self.instance.rack = Rack.objects.get(site=site, group__name=rack_group, name=rack_name)
+            except Rack.DoesNotExist:
+                raise forms.ValidationError("Rack {} not found in site {} group {}".format(rack_name, site, rack_group))
+        elif site and rack_name:
+            try:
+                self.instance.rack = Rack.objects.get(site=site, group__isnull=True, name=rack_name)
+            except Rack.DoesNotExist:
+                raise forms.ValidationError("Rack {} not found in site {} (no group)".format(rack_name, site))
+
+
+class RackFurnitureBulkEditForm(BootstrapMixin, CustomFieldBulkEditForm):
+    pk = forms.ModelMultipleChoiceField(queryset=Device.objects.all(), widget=forms.MultipleHiddenInput)
+    rack_furniture_type = forms.ModelChoiceField(queryset=RackFurnitureType.objects.all(), required=False, label='Type')
+    tenant = forms.ModelChoiceField(queryset=Tenant.objects.all(), required=False)
+    status = forms.ChoiceField(choices=add_blank_choice(STATUS_CHOICES), required=False, initial='')
+    serial = forms.CharField(max_length=50, required=False, label='Serial Number')
+
+    class Meta:
+        nullable_fields = ['tenant', 'platform', 'serial']
+
+
+def rack_furniture_status_choices():
+    status_counts = {}
+    for status in RackFurniture.objects.values('status').annotate(count=Count('status')).order_by('status'):
+        status_counts[status['status']] = status['count']
+    return [(s[0], '{} ({})'.format(s[1], status_counts.get(s[0], 0))) for s in STATUS_CHOICES]
+
+
+class RackFurnitureFilterForm(BootstrapMixin, CustomFieldFilterForm):
+    model = RackFurniture
+    q = forms.CharField(required=False, label='Search')
+    site = FilterChoiceField(
+        queryset=Site.objects.annotate(filter_count=Count('furniture')),
+        to_field_name='slug',
+    )
+    rack_group_id = FilterChoiceField(
+        queryset=RackGroup.objects.select_related('site').annotate(filter_count=Count('racks__furniture')),
+        label='Rack group',
+    )
+    rack_id = FilterChoiceField(
+        queryset=Rack.objects.annotate(filter_count=Count('furniture')),
+        label='Rack',
+        null_option=(0, 'None'),
+    )
+    tenant = FilterChoiceField(
+        queryset=Tenant.objects.annotate(filter_count=Count('furniture')),
+        to_field_name='slug',
+        null_option=(0, 'None'),
+    )
+    manufacturer_id = FilterChoiceField(queryset=Manufacturer.objects.all(), label='Manufacturer')
+    rack_furniture_type_id = FilterChoiceField(
+        queryset=RackFurnitureType.objects.select_related('manufacturer').order_by('model').annotate(
+            filter_count=Count('instances'),
+        ),
+        label='Model',
+    )
+    status = forms.MultipleChoiceField(choices=rack_furniture_status_choices, required=False)
 
 
 #

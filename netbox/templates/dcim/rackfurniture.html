@@ -1,0 +1,146 @@
+{% extends '_base.html' %}
+{% load helpers %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <ol class="breadcrumb">
+            <li><a href="{% url 'dcim:rackfurniture_list' %}">Rack Furniture</a></li>
+            <li>{{ rackfurniture.rack_furniture_type_.model }}</li>
+        </ol>
+    </div>
+</div>
+
+{% if perms.dcim.change_rackfurniture or perms.dcim.delete_rackfurniture %}
+    <div class="pull-right">
+      {% if perms.dcim.change_rackfurniture %}
+            <a href="{% url 'dcim:rackfurniture_edit' pk=rackfurniture.pk %}" class="btn btn-warning">
+              <span class="fa fa-pencil" aria-hidden="true"></span>
+              Edit this rack furniture 
+            </a>
+      {% endif %}
+      {% if perms.dcim.delete_rackfurniture %}
+          <a href="{% url 'dcim:rackfurniture_delete' pk=rackfurniture.pk %}" class="btn btn-danger">
+          	<span class="fa fa-trash" aria-hidden="true"></span>
+          	Delete this rack furniture 
+          </a>
+      {% endif %}
+    </div>
+{% endif %}
+
+<h1>{% block title %}{{ rackfurniture.rack_furniture_type.name }}{% endblock %}</h1>
+<div class="row">
+    <div class="col-md-5">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <strong>Details</strong>
+            </div>
+            <table class="table table-hover panel-body attr-table">
+                    <tr>
+                        <td>Site</td>
+                        <td>
+                            {% if rackfurniture.site.region %}
+                                <a href="{{ rackfurniture.site.region.get_absolute_url }}">{{ rackfurniture.site.region }}</a>
+                                <i class="fa fa-angle-right"></i>
+                            {% endif %}
+                            <a href="{% url 'dcim:site' slug=rackfurniture.site.slug %}">{{ rackfurniture.site }}</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Rack</td>
+                        <td>
+                            {% if rackfurniture.rack %}
+                                {% if rackfurniture.rack.group %}
+                                    <a href="{{ rackfurniture.rack.group.get_absolute_url }}">{{ rackfurniture.rack.group.name }}</a>
+                                    <i class="fa fa-angle-right"></i>
+                                {% endif %}
+                                <a href="{% url 'dcim:rack' pk=rackfurniture.rack.pk %}">{{ rackfurniture.rack.name }}</a>{% if rackfurniture.rack.facility_id %} ({{ rackfurniture.rack.facility_id }}){% endif %}
+                            {% else %}
+                                <span class="text-muted">None</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Position</td>
+                        <td>
+                            <span>U{{ rackfurniture.position }} / {{ rackfurniture.get_face_display }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Tenant</td>
+                        <td>
+                            {% if rackfurniture.tenant %}
+                                {% if rackfurniture.tenant.group %}
+                                    <a href="{{ rackfurniture.tenant.group.get_absolute_url }}">{{ rackfurniture.tenant.group.name }}</a>
+                                    <i class="fa fa-angle-right"></i>
+                                {% endif %}
+                                <a href="{{ rackfurniture.tenant.get_absolute_url }}">{{ rackfurniture.tenant }}</a>
+                            {% else %}
+                                <span class="text-muted">None</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                <tr>
+                    <td>Manufacturer</td>
+                    <td>
+                        {% if rackfurniture.rack_furniture_type.manufacturer %}
+                            <a href="{% url 'dcim:rackfurnituretype_list' %}?manufacturer={{ rackfurniture.rack_furniture_type.manufacturer.slug }}">{{ rackfurniture.rack_furniture_type.manufacturer }}</a>
+                        {% else %}
+                            <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Model Name</td>
+                    <td>
+                        {% if rackfurniture.rack_furniture_type.model %}
+                            {{ rackfurniture.rack_furniture_type.model }}
+                        {% else %}
+                            <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Part Number</td>
+                    <td>
+                        {% if rackfurniture.rack_furniture_type.part_number %}
+                            {{ rackfurniture.rack_furniture_type.part_number }}
+                        {% else %}
+                            <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Height (U)</td>
+                    <td>{{ rackfurniture.rack_furniture_type.u_height }}</td>
+                </tr>
+                <tr>
+                    <td>Full Depth</td>
+                    <td>
+                        {% if rackfurniture.rack_furniture_type.is_full_depth %}
+                            <i class="glyphicon glyphicon-ok text-success" title="Yes"></i>
+                        {% else %}
+                            <i class="glyphicon glyphicon-remove text-danger" title="No"></i>
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </div>
+        {% with rackfurniture.get_custom_fields as custom_fields %}
+            {% include 'inc/custom_fields_panel.html' %}
+        {% endwith %}
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <strong>Comments</strong>
+            </div>
+            <div class="panel-body">
+                {% if rackfurniture.comments %}
+                    {{ rackfurniture.comments|gfm }}
+                {% else %}
+                    <span class="text-muted">None</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

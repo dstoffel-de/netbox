@@ -13,6 +13,8 @@
         {% for u in secondary_face %}
             {% if u.device %}
                 <li class="occupied h{{ u.device.device_type.u_height }}u{% if u.device.device_type.is_full_depth %} blocked{% endif %}"></li>
+            {% elif u.furniture %}
+                <li class="occupied h{{ u.furniture.rack_furniture_type.u_height }}u{% if u.furniture.rack_furniture_type.is_full_depth %} blocked{% endif %}"></li>
             {% else %}
                 <li></li>
             {% endif %}
@@ -36,6 +38,17 @@
                         <span>{{ u.device.name|default:u.device.device_role }}</span>
                     {% endifequal %}
                 </li>
+            {% elif u.furniture %}
+                <li class="occupied h{{ u.furniture.rack_furniture_type.u_height }}u"{% ifequal u.furniture.face face_id %} style="background-color: #{{ u.furniture.rack_furniture_type.color }}"{% endifequal %}>
+                    {% ifequal u.furniture.face face_id %}
+                        <a href="{% url 'dcim:rackfurniture' pk=u.furniture.pk %}" data-toggle="popover" data-trigger="hover" data-container="body" data-html="true"
+                           data-content="{{ u.furniture.rack_furniture_type }}<br />{{ u.furniture.rack_furniture_type.name }} ({{ u.furniture.rack_furniture_type.u_height }}U){% if u.furniture.asset_tag %}<br />{{ u.furniture.asset_tag }}{% endif %}">
+                            {{ u.furniture.rack_furniture_type.name }}
+                        </a>
+                    {% else %}
+                        <span>{{ u.furniture.rack_furniture_type.name }}</span>
+                    {% endifequal %}
+                </li>
             {% else %}
                 <li class="available{% if u.id in reserved_units.keys %} reserved{% endif %}">
                     {% if perms.dcim.add_device %}
@@ -45,6 +58,14 @@
                            data-content="{{ resv.description }}<br/><small>{{ resv.user }} &middot; {{ resv.created }}</small>"
                        {% endwith %}{% endif %}
                         >add device</a>
+                    {% endif %}
+                    {% if perms.dcim.add_rackfurniture %}
+                        <a href="{% url 'dcim:rackfurniture_add' %}?site={{ rack.site.pk }}&rack={{ rack.pk }}&face={{ face_id }}&position={{ u.id }}" class="add_device"
+                        {% if u.id in reserved_units.keys %}{% with reserved_units|getkey:u.id as resv %}
+                            data-toggle="popover" data-trigger="hover" data-container="body" data-html="true"
+                            data-content="{{ resv.description }}<br/><small>{{ resv.user }} &middot; {{ resv.created }}</small>"
+                        {% endwith %}{% endif %}
+                        >add furniture</a>
                     {% endif %}
                 </li>
             {% endif %}

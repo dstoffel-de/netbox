@@ -102,6 +102,26 @@
                         <li>
                             <a href="{% url 'dcim:rackreservation_list' %}">Reservations</a>
                         </li>
+                        <li class="divider"></li>
+                        <li class="dropdown-header">Rack Furniture</li>
+                        <li>
+                            {% if perms.dcim.add_rackfurniture %}
+                                <div class="buttons pull-right">
+                                    <a href="{% url 'dcim:rackfurniture_add' %}" class="btn btn-xs btn-success" title="Add"><i class="fa fa-plus"></i></a>
+                                    <a href="{% url 'dcim:rackfurniture_import' %}" class="btn btn-xs btn-info" title="Import"><i class="fa fa-download"></i></a>
+                                </div>
+                            {% endif %}
+                            <a href="{% url 'dcim:rackfurniture_list' %}">Rack Furniture</a>
+                        </li>
+                        <li>
+                            {% if perms.dcim.add_rackfurnituretype %}
+                                <div class="buttons pull-right">
+                                    <a href="{% url 'dcim:rackfurnituretype_add' %}" class="btn btn-xs btn-success" title="Add"><i class="fa fa-plus"></i></a>
+                                    <a href="{% url 'dcim:rackfurnituretype_import' %}" class="btn btn-xs btn-info" title="Import"><i class="fa fa-download"></i></a>
+                                </div>
+                            {% endif %}
+                            <a href="{% url 'dcim:rackfurnituretype_list' %}">Rack Furniture Types</a>
+                        </li>
                     </ul>
                 </li>
                 <li class="dropdown{% if request.path|contains:'/dcim/device,/dcim/manufacturers/,/dcim/platforms/,-connections/' %} active{% endif %}">

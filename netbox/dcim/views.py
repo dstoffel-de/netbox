@@ -30,7 +30,7 @@ from .models import (
     CONNECTION_STATUS_CONNECTED, ConsolePort, ConsolePortTemplate, ConsoleServerPort, ConsoleServerPortTemplate, Device,
     DeviceBay, DeviceBayTemplate, DeviceRole, DeviceType, Interface, InterfaceConnection, InterfaceTemplate,
     Manufacturer, InventoryItem, Platform, PowerOutlet, PowerOutletTemplate, PowerPort, PowerPortTemplate, Rack,
-    RackGroup, RackReservation, RackRole, Region, Site,
+    RackGroup, RackFurniture, RackFurnitureType, RackReservation, RackRole, Region, Site,
 )
 
 
@@ -431,6 +431,138 @@ class RackReservationBulkDeleteView(PermissionRequiredMixin, BulkDeleteView):
     cls = RackReservation
     table = tables.RackReservationTable
     default_return_url = 'dcim:rackreservation_list'
+
+
+#
+# Rack Furniture types
+#
+
+class RackFurnitureTypeView(View):
+
+    def get(self, request, pk):
+
+        rackfurnituretype = get_object_or_404(RackFurnitureType, pk=pk)
+
+        return render(request, 'dcim/rackfurnituretype.html', {
+            'rackfurnituretype': rackfurnituretype,
+        })
+
+
+class RackFurnitureTypeListView(ObjectListView):
+    queryset = RackFurnitureType.objects.select_related('manufacturer').annotate(instance_count=Count('instances'))
+    filter = filters.RackFurnitureTypeFilter
+    filter_form = forms.RackFurnitureTypeFilterForm
+    table = tables.RackFurnitureTypeTable
+    template_name = 'dcim/rackfurnituretype_list.html'
+
+
+class RackFurnitureTypeCreateView(PermissionRequiredMixin, ObjectEditView):
+    permission_required = 'dcim.add_rackfurnituretype'
+    model = RackFurnitureType
+    model_form = forms.RackFurnitureTypeForm
+    template_name = 'dcim/rackfurnituretype_edit.html'
+    default_return_url = 'dcim:rackfurnituretype_list'
+
+
+class RackFurnitureTypeEditView(RackFurnitureTypeCreateView):
+    permission_required = 'dcim.change_rackfurnituretype'
+
+
+class RackFurnitureTypeDeleteView(PermissionRequiredMixin, ObjectDeleteView):
+    permission_required = 'dcim.delete_rackfurnituretype'
+    model = RackFurnitureType
+    default_return_url = 'dcim:rackfurnituretype_list'
+
+
+class RackFurnitureTypeBulkImportView(PermissionRequiredMixin, BulkImportView):
+    permission_required = 'dcim.add_rackfurnituretype'
+    model_form = forms.RackFurnitureTypeCSVForm
+    table = tables.RackFurnitureTypeTable
+    default_return_url = 'dcim:rackfurnituretype_list'
+
+
+class RackFurnitureTypeBulkEditView(PermissionRequiredMixin, BulkEditView):
+    permission_required = 'dcim.change_rackfurnituretype'
+    cls = RackFurnitureType
+    queryset = RackFurnitureType.objects.select_related('manufacturer').annotate(instance_count=Count('instances'))
+    filter = filters.RackFurnitureTypeFilter
+    table = tables.RackFurnitureTypeTable
+    form = forms.RackFurnitureTypeBulkEditForm
+    default_return_url = 'dcim:rackfurnituretype_list'
+
+
+class RackFurnitureTypeBulkDeleteView(PermissionRequiredMixin, BulkDeleteView):
+    permission_required = 'dcim.delete_rackfurnituretype'
+    cls = RackFurnitureType
+    queryset = RackFurnitureType.objects.select_related('manufacturer').annotate(instance_count=Count('instances'))
+    filter = filters.RackFurnitureTypeFilter
+    table = tables.RackFurnitureTypeTable
+    default_return_url = 'dcim:rackfurnituretype_list'
+
+
+#
+# Rack Furniture
+#
+
+class RackFurnitureView(View):
+
+    def get(self, request, pk):
+
+        rackfurniture = get_object_or_404(RackFurniture, pk=pk)
+
+        return render(request, 'dcim/rackfurniture.html', {
+            'rackfurniture': rackfurniture,
+        })
+
+class RackFurnitureListView(ObjectListView):
+    queryset = RackFurniture.objects.select_related('rack_furniture_type__manufacturer', 'tenant', 'site', 'rack')
+    filter = filters.RackFurnitureFilter
+    filter_form = forms.RackFurnitureFilterForm
+    table = tables.RackFurnitureTable
+    template_name = 'dcim/rackfurniture_list.html'
+
+
+class RackFurnitureCreateView(PermissionRequiredMixin, ObjectEditView):
+    permission_required = 'dcim.add_rackfurniture'
+    model = RackFurniture
+    model_form = forms.RackFurnitureForm
+    template_name = 'dcim/rackfurniture_edit.html'
+    default_return_url = 'dcim:rackfurniture_list'
+
+
+class RackFurnitureEditView(RackFurnitureCreateView):
+    permission_required = 'dcim.change_rackfurniture'
+
+
+class RackFurnitureDeleteView(PermissionRequiredMixin, ObjectDeleteView):
+    permission_required = 'dcim.delete_rackfurniture'
+    model = RackFurniture
+    default_return_url = 'dcim:rackfurniture_list'
+
+
+class RackFurnitureBulkImportView(PermissionRequiredMixin, BulkImportView):
+    permission_required = 'dcim.add_rackfurniture'
+    model_form = forms.RackFurnitureCSVForm
+    table = tables.RackFurnitureTable
+    default_return_url = 'dcim:rackfurniture_list'
+
+
+class RackFurnitureBulkEditView(PermissionRequiredMixin, BulkEditView):
+    permission_required = 'dcim.change_rackfurniture'
+    cls = RackFurniture
+    queryset = RackFurniture.objects.select_related('rack_furniture_type__manufacturer', 'tenant', 'site', 'rack')
+    table = tables.RackFurnitureTable
+    form = forms.RackFurnitureBulkEditForm
+    default_return_url = 'dcim:rackfurniture_list'
+
+
+class RackFurnitureBulkDeleteView(PermissionRequiredMixin, BulkDeleteView):
+    permission_required = 'dcim.delete_rackfurniture'
+    cls = RackFurniture
+    queryset = RackFurniture.objects.select_related('rack_furniture_type__manufacturer', 'tenant', 'site', 'rack')
+    filter = filters.RackFurnitureFilter
+    table = tables.RackFurnitureTable
+    default_return_url = 'dcim:rackfurniture_list'
 
 
 #

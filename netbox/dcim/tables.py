@@ -7,7 +7,8 @@ from utilities.tables import BaseTable, ToggleColumn
 from .models import (
     ConsolePort, ConsolePortTemplate, ConsoleServerPort, ConsoleServerPortTemplate, Device, DeviceBay,
     DeviceBayTemplate, DeviceRole, DeviceType, Interface, InterfaceTemplate, Manufacturer, Platform, PowerOutlet,
-    PowerOutletTemplate, PowerPort, PowerPortTemplate, Rack, RackGroup, RackReservation, Region, Site,
+    PowerOutletTemplate, PowerPort, PowerPortTemplate, Rack, RackGroup, RackFurniture, RackFurnitureType,
+    RackReservation, Region, Site,
 )
 
 
@@ -271,6 +272,47 @@ class ManufacturerTable(BaseTable):
     class Meta(BaseTable.Meta):
         model = Manufacturer
         fields = ('pk', 'name', 'devicetype_count', 'slug', 'actions')
+
+
+#
+# Rack Furniture Types
+#
+
+class RackFurnitureTypeTable(BaseTable):
+    pk = ToggleColumn()
+    name = tables.LinkColumn(verbose_name='Name')
+    color = tables.TemplateColumn(COLOR_LABEL, verbose_name='Label')
+    is_full_depth = tables.BooleanColumn(verbose_name='Full Depth')
+    instance_count = tables.Column(verbose_name='Instances')
+
+    class Meta(BaseTable.Meta):
+        model = RackFurnitureType
+        fields = [
+            'pk', 'name', 'color', 'model', 'manufacturer', 'part_number', 'u_height', 'is_full_depth',
+            'instance_count'
+        ]
+
+
+#
+# Rack Furniture
+#
+
+class RackFurnitureTable(BaseTable):
+    pk = ToggleColumn()
+    rack_furniture_type = tables.LinkColumn(
+        'dcim:rackfurniture', args=[Accessor('rack_furniture_type.pk')], verbose_name='Type',
+        text=lambda record: record.rack_furniture_type.name
+    )
+    status = tables.TemplateColumn(template_code=DEVICE_STATUS, verbose_name='Status')
+    tenant = tables.LinkColumn('tenancy:tenant', args=[Accessor('tenant.slug')])
+    site = tables.LinkColumn('dcim:site', args=[Accessor('site.slug')])
+    rack = tables.LinkColumn('dcim:rack', args=[Accessor('rack.pk')])
+
+    class Meta(BaseTable.Meta):
+        model = RackFurniture
+        fields = [
+            'pk', 'rack_furniture_type', 'status', 'tenant', 'site', 'rack', 'device_role'
+        ]
 
 
 #

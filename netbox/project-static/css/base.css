@@ -314,7 +314,7 @@ ul.rack_near_face li.occupied:hover {
 ul.rack_near_face li:first-child {
     border-top: 0;
 }
-ul.rack_near_face li.available a {
+ul.rack_near_face li.available div.add_links {
     color: #0000ff;
     display: none;
     text-decoration: none;

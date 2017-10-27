@@ -69,6 +69,26 @@ urlpatterns = [
     url(r'^manufacturers/delete/$', views.ManufacturerBulkDeleteView.as_view(), name='manufacturer_bulk_delete'),
     url(r'^manufacturers/(?P<slug>[\w-]+)/edit/$', views.ManufacturerEditView.as_view(), name='manufacturer_edit'),
 
+    # Rack Furniture Types
+    url(r'^rack-furniture-types/$', views.RackFurnitureTypeListView.as_view(), name='rackfurnituretype_list'),
+    url(r'^rack-furniture-types/add/$', views.RackFurnitureTypeCreateView.as_view(), name='rackfurnituretype_add'),
+    url(r'^rack-furniture-types/import/$', views.RackFurnitureTypeBulkImportView.as_view(), name='rackfurnituretype_import'),
+    url(r'^rack-furniture-types/edit/$', views.RackFurnitureTypeBulkEditView.as_view(), name='rackfurnituretype_bulk_edit'),
+    url(r'^rack-furniture-types/delete/$', views.RackFurnitureTypeBulkDeleteView.as_view(), name='rackfurnituretype_bulk_delete'),
+    url(r'^rack-furniture-types/(?P<pk>\d+)/$', views.RackFurnitureTypeView.as_view(), name='rackfurnituretype'),
+    url(r'^rack-furniture-types/(?P<pk>\d+)/edit/$', views.RackFurnitureTypeEditView.as_view(), name='rackfurnituretype_edit'),
+    url(r'^rack-furniture-types/(?P<pk>\d+)/delete/$', views.RackFurnitureTypeDeleteView.as_view(), name='rackfurnituretype_delete'),
+
+    # Rack Furniture
+    url(r'^rack-furniture/$', views.RackFurnitureListView.as_view(), name='rackfurniture_list'),
+    url(r'^rack-furniture/add/$', views.RackFurnitureCreateView.as_view(), name='rackfurniture_add'),
+    url(r'^rack-furniture/import/$', views.RackFurnitureBulkImportView.as_view(), name='rackfurniture_import'),
+    url(r'^rack-furniture/edit/$', views.RackFurnitureBulkEditView.as_view(), name='rackfurniture_bulk_edit'),
+    url(r'^rack-furniture/delete/$', views.RackFurnitureBulkDeleteView.as_view(), name='rackfurniture_bulk_delete'),
+    url(r'^rack-furniture/(?P<pk>\d+)/$', views.RackFurnitureView.as_view(), name='rackfurniture'),
+    url(r'^rack-furniture/(?P<pk>\d+)/edit/$', views.RackFurnitureEditView.as_view(), name='rackfurniture_edit'),
+    url(r'^rack-furniture/(?P<pk>\d+)/delete/$', views.RackFurnitureDeleteView.as_view(), name='rackfurniture_delete'),
+
     # Device types
     url(r'^device-types/$', views.DeviceTypeListView.as_view(), name='devicetype_list'),
     url(r'^device-types/add/$', views.DeviceTypeCreateView.as_view(), name='devicetype_add'),

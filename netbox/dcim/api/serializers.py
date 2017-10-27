@@ -10,8 +10,8 @@ from dcim.models import (
     CONNECTION_STATUS_CHOICES, ConsolePort, ConsolePortTemplate, ConsoleServerPort, ConsoleServerPortTemplate, Device,
     DeviceBay, DeviceBayTemplate, DeviceType, DeviceRole, IFACE_FF_CHOICES, IFACE_ORDERING_CHOICES, Interface,
     InterfaceConnection, InterfaceTemplate, Manufacturer, InventoryItem, Platform, PowerOutlet, PowerOutletTemplate,
-    PowerPort, PowerPortTemplate, Rack, RackGroup, RackReservation, RackRole, RACK_FACE_CHOICES, RACK_TYPE_CHOICES,
-    RACK_WIDTH_CHOICES, Region, Site, STATUS_CHOICES, SUBDEVICE_ROLE_CHOICES,
+    PowerPort, PowerPortTemplate, Rack, RackGroup, RackFurniture, RackFurnitureType, RackReservation, RackRole,
+    RACK_FACE_CHOICES, RACK_TYPE_CHOICES, RACK_WIDTH_CHOICES, Region, Site, STATUS_CHOICES, SUBDEVICE_ROLE_CHOICES,
 )
 from extras.api.customfields import CustomFieldModelSerializer
 from tenancy.api.serializers import NestedTenantSerializer
@@ -241,6 +241,72 @@ class NestedManufacturerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Manufacturer
         fields = ['id', 'url', 'name', 'slug']
+
+
+#
+# Rack Furniture Types
+#
+
+class RackFurnitureTypeSerializer(CustomFieldModelSerializer):
+    manufacturer = NestedManufacturerSerializer()
+    instance_count = serializers.IntegerField(source='instances.count', read_only=True)
+
+    class Meta:
+        model = RackFurnitureType
+        fields = [
+            'id', 'manufacturer', 'model', 'slug', 'part_number', 'u_height', 'is_full_depth',
+            'comments', 'custom_fields', 'instance_count', 'color',
+        ]
+
+
+class NestedRackFurnitureTypeSerializer(serializers.ModelSerializer):
+    url = serializers.HyperlinkedIdentityField(view_name='dcim-api:rackfurnituretype-detail')
+
+    class Meta:
+        model = RackFurnitureType
+        fields = [
+            'id', 'url', 'name', 'slug'
+        ]
+
+
+class WritableRackFurnitureTypeSerializer(CustomFieldModelSerializer):
+
+    class Meta:
+        model = RackFurnitureType
+        fields = [
+            'id', 'manufacturer', 'model', 'slug', 'part_number', 'u_height', 'is_full_depth',
+            'comments', 'custom_fields', 'color',
+        ]
+
+
+#
+# Rack Furniture
+#
+
+class RackFurnitureSerializer(CustomFieldModelSerializer):
+    rack_furniture_type = NestedRackFurnitureTypeSerializer()
+    tenant = NestedTenantSerializer()
+    site = NestedSiteSerializer()
+    rack = NestedRackSerializer()
+    face = ChoiceFieldSerializer(choices=RACK_FACE_CHOICES)
+    status = ChoiceFieldSerializer(choices=STATUS_CHOICES)
+
+    class Meta:
+        model = RackFurniture
+        fields = [
+            'id', 'rack_furniture_type', 'tenant', 'serial', 'asset_tag', 'site', 'rack',
+            'position', 'face', 'status', 'comments', 'custom_fields',
+        ]
+
+
+class NestedRackFurnitureSerializer(serializers.ModelSerializer):
+    url = serializers.HyperlinkedIdentityField(view_name='dcim-api:rackfurniture-detail')
+
+    class Meta:
+        model = RackFurniture
+        fields = [
+            'id', 'url', 'rack_furniture_type'
+        ]
 
 
 #

@@ -14,7 +14,7 @@ from dcim.models import (
     ConsolePort, ConsolePortTemplate, ConsoleServerPort, ConsoleServerPortTemplate, Device, DeviceBay,
     DeviceBayTemplate, DeviceRole, DeviceType, Interface, InterfaceConnection, InterfaceTemplate, Manufacturer,
     InventoryItem, Platform, PowerOutlet, PowerOutletTemplate, PowerPort, PowerPortTemplate, Rack, RackGroup,
-    RackReservation, RackRole, Region, Site,
+    RackFurniture, RackFurnitureType, RackReservation, RackRole, Region, Site,
 )
 from dcim import filters
 from extras.api.serializers import RenderedGraphSerializer
@@ -112,12 +112,18 @@ class RackViewSet(WritableSerializerMixin, CustomFieldModelViewSet):
         rack = get_object_or_404(Rack, pk=pk)
         face = request.GET.get('face', 0)
         exclude_pk = request.GET.get('exclude', None)
+        exclude_furniture_pk = request.GET.get('exclude_furniture', None)
         if exclude_pk is not None:
             try:
                 exclude_pk = int(exclude_pk)
             except ValueError:
                 exclude_pk = None
-        elevation = rack.get_rack_units(face, exclude_pk)
+        if exclude_furniture_pk is not None:
+            try:
+                exclude_furniture_pk = int(exclude_furniture_pk)
+            except ValueError:
+                exclude_furniture_pk = None
+        elevation = rack.get_rack_units(face, exclude_pk, exclude_furniture_pk)
 
         page = self.paginate_queryset(elevation)
         if page is not None:
@@ -148,6 +154,27 @@ class ManufacturerViewSet(ModelViewSet):
     queryset = Manufacturer.objects.all()
     serializer_class = serializers.ManufacturerSerializer
     filter_class = filters.ManufacturerFilter
+
+
+#
+# Rack Furniture Types
+#
+
+class RackFurnitureTypeViewSet(ModelViewSet):
+    queryset = RackFurnitureType.objects.all()
+    serializer_class = serializers.RackFurnitureTypeSerializer
+    write_serializer_class = serializers.WritableRackFurnitureTypeSerializer
+    filter_class = filters.RackFurnitureTypeFilter
+
+
+#
+# Rack Furniture
+#
+
+class RackFurnitureViewSet(ModelViewSet):
+    queryset = RackFurniture.objects.all()
+    serializer_class = serializers.RackFurnitureSerializer
+    filter_class = filters.RackFurnitureFilter
 
 
 #

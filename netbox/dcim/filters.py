@@ -15,8 +15,8 @@ from .models import (
     ConsolePort, ConsolePortTemplate, ConsoleServerPort, ConsoleServerPortTemplate, Device, DeviceBay,
     DeviceBayTemplate, DeviceRole, DeviceType, STATUS_CHOICES, IFACE_FF_LAG, Interface, InterfaceConnection,
     InterfaceTemplate, Manufacturer, InventoryItem, NONCONNECTABLE_IFACE_TYPES, Platform, PowerOutlet,
-    PowerOutletTemplate, PowerPort, PowerPortTemplate, Rack, RackGroup, RackReservation, RackRole, Region, Site,
-    VIRTUAL_IFACE_TYPES, WIRELESS_IFACE_TYPES,
+    PowerOutletTemplate, PowerPort, PowerPortTemplate, Rack, RackGroup, RackFurniture, RackFurnitureType,
+    RackReservation, RackRole, Region, Site, VIRTUAL_IFACE_TYPES, WIRELESS_IFACE_TYPES,
 )
 
 
@@ -235,6 +235,121 @@ class ManufacturerFilter(django_filters.FilterSet):
     class Meta:
         model = Manufacturer
         fields = ['name', 'slug']
+
+
+class RackFurnitureTypeFilter(CustomFieldFilterSet, django_filters.FilterSet):
+    id__in = NumericInFilter(name='id', lookup_expr='in')
+    q = django_filters.CharFilter(
+        method='search',
+        label='Search',
+    )
+    manufacturer_id = django_filters.ModelMultipleChoiceFilter(
+        queryset=Manufacturer.objects.all(),
+        label='Manufacturer (ID)',
+    )
+    manufacturer = django_filters.ModelMultipleChoiceFilter(
+        name='manufacturer__slug',
+        queryset=Manufacturer.objects.all(),
+        to_field_name='slug',
+        label='Manufacturer (slug)',
+    )
+
+    class Meta:
+        model = RackFurnitureType
+        fields = [
+            'model', 'slug', 'part_number', 'u_height', 'is_full_depth',
+        ]
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(manufacturer__name__icontains=value) |
+            Q(model__icontains=value) |
+            Q(part_number__icontains=value) |
+            Q(comments__icontains=value)
+        )
+
+
+class RackFurnitureFilter(CustomFieldFilterSet, django_filters.FilterSet):
+    id__in = NumericInFilter(name='id', lookup_expr='in')
+    q = django_filters.CharFilter(
+        method='search',
+        label='Search',
+    )
+    manufacturer_id = django_filters.ModelMultipleChoiceFilter(
+        name='device_type__manufacturer',
+        queryset=Manufacturer.objects.all(),
+        label='Manufacturer (ID)',
+    )
+    manufacturer = django_filters.ModelMultipleChoiceFilter(
+        name='device_type__manufacturer__slug',
+        queryset=Manufacturer.objects.all(),
+        to_field_name='slug',
+        label='Manufacturer (slug)',
+    )
+    rack_furniture_type_id = django_filters.ModelMultipleChoiceFilter(
+        queryset=RackFurnitureType.objects.all(),
+        label='Rack furniture type (ID)',
+    )
+    tenant_id = NullableModelMultipleChoiceFilter(
+        queryset=Tenant.objects.all(),
+        label='Tenant (ID)',
+    )
+    tenant = NullableModelMultipleChoiceFilter(
+        name='tenant',
+        queryset=Tenant.objects.all(),
+        to_field_name='slug',
+        label='Tenant (slug)',
+    )
+    asset_tag = NullableCharFieldFilter()
+    site_id = django_filters.ModelMultipleChoiceFilter(
+        queryset=Site.objects.all(),
+        label='Site (ID)',
+    )
+    site = django_filters.ModelMultipleChoiceFilter(
+        name='site__slug',
+        queryset=Site.objects.all(),
+        to_field_name='slug',
+        label='Site name (slug)',
+    )
+    rack_group_id = django_filters.ModelMultipleChoiceFilter(
+        name='rack__group',
+        queryset=RackGroup.objects.all(),
+        label='Rack group (ID)',
+    )
+    rack_id = NullableModelMultipleChoiceFilter(
+        name='rack',
+        queryset=Rack.objects.all(),
+        label='Rack (ID)',
+    )
+    model = django_filters.ModelMultipleChoiceFilter(
+        name='rack_furniture_type__slug',
+        queryset=RackFurnitureType.objects.all(),
+        to_field_name='slug',
+        label='Device model (slug)',
+    )
+    status = django_filters.MultipleChoiceFilter(
+        choices=STATUS_CHOICES
+    )
+    is_full_depth = django_filters.BooleanFilter(
+        name='device_type__is_full_depth',
+        label='Is full depth',
+    )
+
+    class Meta:
+        model = RackFurniture
+        fields = ['serial']
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(
+            Q(name__icontains=value) |
+            Q(serial__icontains=value.strip()) |
+            Q(asset_tag=value.strip()) |
+            Q(comments__icontains=value)
+        ).distinct()
 
 
 class DeviceTypeFilter(CustomFieldFilterSet, django_filters.FilterSet):

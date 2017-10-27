@@ -316,7 +316,7 @@ class Rack(CreatedUpdatedModel, CustomFieldModel):
             return self.name
         return ""
 
-    def get_rack_units(self, face=RACK_FACE_FRONT, exclude=None, remove_redundant=False):
+    def get_rack_units(self, face=RACK_FACE_FRONT, exclude=None, remove_redundant=False, exclude_furniture=None):
         """
         Return a list of rack units as dictionaries. Example: {'device': None, 'face': 0, 'id': 48, 'name': 'U48'}
         Each key 'device' is either a Device or None. By default, multi-U devices are repeated for each U they occupy.
@@ -324,14 +324,17 @@ class Rack(CreatedUpdatedModel, CustomFieldModel):
         :param face: Rack face (front or rear)
         :param exclude: PK of a Device to exclude (optional); helpful when relocating a Device within a Rack
         :param remove_redundant: If True, rack units occupied by a device already listed will be omitted
+        :param exclude_furniture: PK of a RackFurniture to exclude (optional); helpful when relocating a
+                                  RackFurniture within a Rack
         """
 
         elevation = OrderedDict()
         for u in self.units:
-            elevation[u] = {'id': u, 'name': 'U{}'.format(u), 'face': face, 'device': None}
+            elevation[u] = {'id': u, 'name': 'U{}'.format(u), 'face': face, 'device': None, 'furniture': None}
 
-        # Add devices to rack units list
         if self.pk:
+
+            # Add devices to rack units list
             for device in Device.objects.select_related('device_type__manufacturer', 'device_role')\
                     .annotate(devicebay_count=Count('device_bays'))\
                     .exclude(pk=exclude)\
@@ -345,6 +348,19 @@ class Rack(CreatedUpdatedModel, CustomFieldModel):
                     for u in range(device.position, device.position + device.device_type.u_height):
                         elevation[u]['device'] = device
 
+            # Add furniture to rack units list
+            for furniture in RackFurniture.objects.select_related('rack_furniture_type__manufacturer')\
+                    .exclude(pk=exclude_furniture)\
+                    .filter(rack=self, position__gt=0)\
+                    .filter(Q(face=face) | Q(rack_furniture_type__is_full_depth=True)):
+                if remove_redundant:
+                    elevation[furniture.position]['furniture'] = furniture
+                    for u in range(furniture.position + 1, furniture.position + furniture.rack_furniture_type.u_height):
+                        elevation.pop(u, None)
+                else:
+                    for u in range(furniture.position, furniture.position + furniture.rack_furniture_type.u_height):
+                        elevation[u]['furniture'] = furniture
+
         return [u for u in elevation.values()]
 
     def get_front_elevation(self):
@@ -353,7 +369,7 @@ class Rack(CreatedUpdatedModel, CustomFieldModel):
     def get_rear_elevation(self):
         return self.get_rack_units(face=RACK_FACE_REAR, remove_redundant=True)
 
-    def get_available_units(self, u_height=1, rack_face=None, exclude=list()):
+    def get_available_units(self, u_height=1, rack_face=None, exclude=list(), exclude_furniture=list()):
         """
         Return a list of units within the rack available to accommodate a device of a given U height (default 1).
         Optionally exclude one or more devices when calculating empty units (needed when moving a device from one
@@ -362,10 +378,15 @@ class Rack(CreatedUpdatedModel, CustomFieldModel):
         :param u_height: Minimum number of contiguous free units required
         :param rack_face: The face of the rack (front or rear) required; 'None' if device is full depth
         :param exclude: List of devices IDs to exclude (useful when moving a device within a rack)
+        :param exclude_furniture: List of rack furniture IDs to exclude (useful when moving a piece of furiture
+                                  within a rack)
         """
 
         # Gather all devices which consume U space within the rack
         devices = self.devices.select_related('device_type').filter(position__gte=1).exclude(pk__in=exclude)
+
+        # Gather all furniture within the rack
+        furniture = self.furniture.select_related('rack_furniture_type').exclude(pk__in=exclude_furniture)
 
         # Initialize the rack unit skeleton
         units = list(range(1, self.u_height + 1))
@@ -380,7 +401,17 @@ class Rack(CreatedUpdatedModel, CustomFieldModel):
                         # Found overlapping devices in the rack!
                         pass
 
-        # Remove units without enough space above them to accommodate a device of the specified height
+        # Remove units consumed by installed furniture
+        for f in furniture:
+            if rack_face is None or f.face == rack_face or f.rack_furniture_type.is_full_depth:
+                for u in range(f.position, f.position + f.rack_furniture_type.u_height):
+                    try:
+                        units.remove(u)
+                    except ValueError:
+                        # Found overlapping furniture in the rack!
+                        pass
+
+        # Remove units without enough space above them to accommodate a device/furniture of the specified height
         available_units = []
         for u in units:
             if set(range(u, u + u_height)).issubset(units):
@@ -460,6 +491,187 @@ class RackReservation(models.Model):
         """
         group = (list(x) for _, x in groupby(sorted(self.units), lambda x, c=count(): next(c) - x))
         return ', '.join('-'.join(map(str, (g[0], g[-1])[:len(g)])) for g in group)
+
+
+#
+# Rack Furniture Types
+#
+
+@python_2_unicode_compatible
+class RackFurnitureType(models.Model, CustomFieldModel):
+    """
+    Defines a type of rack furniture, i.e. wire manager, brush guard, etc.
+    """
+    name = models.CharField(max_length=50, unique=True)
+    color = ColorField()
+    manufacturer = models.ForeignKey('Manufacturer', help_text="Manufacturer (optional)",
+                                     related_name='rack_furniture_types', on_delete=models.PROTECT, null=True)
+    model = models.CharField(max_length=50, blank=True, help_text="Model number (optional)")
+    slug = models.SlugField()
+    part_number = models.CharField(max_length=50, blank=True, help_text="Discrete part number (optional)")
+    u_height = models.PositiveSmallIntegerField(verbose_name='Height (U)', default=1)
+    is_full_depth = models.BooleanField(default=True, verbose_name="Is full depth",
+                                        help_text="Furniture consumes both front and rear rack faces")
+    comments = models.TextField(blank=True)
+    custom_field_values = GenericRelation(CustomFieldValue, content_type_field='obj_type', object_id_field='obj_id')
+
+    csv_headers = [
+        'name', 'manufacturer', 'model', 'slug', 'part_number', 'u_height', 'is_full_depth', 'comments', 'color',
+    ]
+
+    class Meta:
+        ordering = ['manufacturer', 'model', 'name']
+        unique_together = [
+            ['manufacturer', 'model'],
+            ['manufacturer', 'slug'],
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def __init__(self, *args, **kwargs):
+        super(RackFurnitureType, self).__init__(*args, **kwargs)
+
+        # Save a copy of u_height for validation in clean()
+        self._original_u_height = self.u_height
+
+    def get_absolute_url(self):
+        return reverse('dcim:rackfurnituretype', args=[self.pk])
+
+    def to_csv(self):
+        return csv_format([
+            self.name,
+            self.manufacturer.name if self.manufacturer else None,
+            self.model,
+            self.slug,
+            self.part_number,
+            self.u_height,
+            self.is_full_depth,
+            self.comments,
+            self.color
+        ])
+
+    def clean(self):
+
+        # If editing an existing RackFurnitureType to have a larger u_height, first validate that *all* instances of it have
+        # room to expand within their racks. This validation will impose a very high performance penalty when there are
+        # many instances to check, but increasing the u_height of a RackFurnitureType should be a very rare occurrence.
+        if self.pk is not None and self.u_height > self._original_u_height:
+            for rf in RackFurniture.objects.filter(rack_furniture_type=self, position__isnull=False):
+                face_required = None if self.is_full_depth else rf.face
+                u_available = rf.rack.get_available_units(u_height=self.u_height, rack_face=face_required,
+                                                         exclude=[rf.pk])
+                if rf.position not in u_available:
+                    raise ValidationError({
+                        'u_height': "Rack furniture {} in rack {} does not have sufficient space to accommodate a "
+                                    "height of {}U".format(rf, rf.rack, self.u_height)
+                    })
+
+
+#
+# Rack Furniture
+#
+
+class RackFurniture(models.Model, CustomFieldModel):
+    """
+    An instance of a piece of rack furniture
+    """
+    rack_furniture_type = models.ForeignKey('RackFurnitureType', related_name='instances', on_delete=models.PROTECT)
+    comments = models.TextField(blank=True)
+    tenant = models.ForeignKey(Tenant, blank=True, null=True, related_name='furniture', on_delete=models.PROTECT)
+    serial = models.CharField(max_length=50, blank=True, verbose_name='Serial number')
+    asset_tag = NullableCharField(
+        max_length=50, blank=True, null=True, unique=True, verbose_name='Asset tag',
+        help_text='A unique tag used to identify this furniture'
+    )
+    site = models.ForeignKey('Site', related_name='furniture', on_delete=models.PROTECT)
+    rack = models.ForeignKey('Rack', related_name='furniture', on_delete=models.PROTECT)
+    position = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1)], verbose_name='Position (U)',
+        help_text='The lowest-numbered unit occupied by the furniture'
+    )
+    face = models.PositiveSmallIntegerField(blank=True, null=True, choices=RACK_FACE_CHOICES, verbose_name='Rack face')
+    status = models.PositiveSmallIntegerField(choices=STATUS_CHOICES, default=STATUS_ACTIVE, verbose_name='Status')
+    custom_field_values = GenericRelation(CustomFieldValue, content_type_field='obj_type', object_id_field='obj_id')
+
+    csv_headers = [
+        'manufacturer', 'model_name', 'tenant', 'serial', 'asset_tag', 'status', 'site', 'rack_group', 'rack_name',
+        'position', 'face', 
+    ]
+
+    class Meta:
+        unique_together = ['rack', 'position', 'face']
+        verbose_name = "piece of rack furniture"
+        verbose_name_plural = "pieces of rack furniture"
+
+    def __str__(self):
+        return self.rack_furniture_type.name
+
+    def get_absolute_url(self):
+        return reverse('dcim:rackfurniture', args=[self.pk])
+
+    def clean(self):
+
+        # Validate site/rack combination
+        if self.rack and self.site != self.rack.site:
+            raise ValidationError({
+                'rack': "Rack {} does not belong to site {}.".format(self.rack, self.site),
+            })
+
+        if self.rack is None:
+            if self.face is not None:
+                raise ValidationError({
+                    'face': "Cannot select a rack face without assigning a rack.",
+                })
+            if self.position:
+                raise ValidationError({
+                    'face': "Cannot select a rack position without assigning a rack.",
+                })
+
+        # Validate position/face combination
+        if self.position and self.face is None:
+            raise ValidationError({
+                'face': "Must specify rack face when defining rack position.",
+            })
+
+        if self.rack:
+
+            try:
+                # Validate rack space
+                rack_face = self.face if not self.rack_furniture_type.is_full_depth else None
+                exclude_list = [self.pk] if self.pk else []
+                try:
+                    available_units = self.rack.get_available_units(
+                        u_height=self.rack_furniture_type.u_height, rack_face=rack_face, exclude=exclude_list
+                    )
+                    if self.position and self.position not in available_units:
+                        raise ValidationError({
+                            'position': "U{} is already occupied or does not have sufficient space to accommodate a(n) "
+                                        "{} ({}U).".format(self.position,
+                                                           self.rack_furniture_type,
+                                                           self.rack_furniture_type.u_height)
+                        })
+                except Rack.DoesNotExist:
+                    pass
+
+            except RackFurnitureType.DoesNotExist:
+                pass
+
+    def to_csv(self):
+        return csv_format([
+            self.rack_furniture_type.name,
+            self.tenant.name if self.tenant else None,
+            self.rack_furniture_type.manufacturer.name,
+            self.rack_furniture_type.model,
+            self.serial,
+            self.asset_tag,
+            self.get_status_display(),
+            self.site.name,
+            self.rack.group.name if self.rack and self.rack.group else None,
+            self.rack.name if self.rack else None,
+            self.position,
+            self.get_face_display(),
+        ])
 
 
 #
