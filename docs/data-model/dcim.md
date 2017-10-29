@@ -36,6 +36,14 @@ Users can reserve units within a rack for future use. Multiple non-contiguous ra
 
 ---
 
+# Rack Furniture
+
+The rack furniture model represents so called "dumb" items which can be placed in a rack. Such items include blanks/spacers, wire/cable managers, shelves, etc. A piece of rack funiture is an item which serves only a physical purpose and does not interact with any network device, server, etc. in any fashion. Rack furniture items generally do not take or distribute power or have network interfaces. It is important to note that patch pannels or any other network path infrustructure except for wire/cable managers should not be modeled as rack furniture. These items will likely be covered in issue [#20 (support for tracking physical cable plants)](https://github.com/digitalocean/netbox/issues/20) at a later date.
+
+Each type of rack furniture has a "Rack Furniture Type" which stores information like the U size, model, manufacturer, etc. Each instance of a piece of rack furniture points to one of these types and itself includes the location infromation such as site, rack, position, etc.
+
+---
+
 # Device Types
 
 A device type represents a particular hardware model that exists in the real world. Device types describe the physical attributes of a device (rack height and depth), its class (e.g. console server, PDU, etc.), and its individual components (console, power, and data).
