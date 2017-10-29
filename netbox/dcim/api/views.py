@@ -160,7 +160,7 @@ class ManufacturerViewSet(ModelViewSet):
 # Rack Furniture Types
 #
 
-class RackFurnitureTypeViewSet(ModelViewSet):
+class RackFurnitureTypeViewSet(WritableSerializerMixin, CustomFieldModelViewSet):
     queryset = RackFurnitureType.objects.all()
     serializer_class = serializers.RackFurnitureTypeSerializer
     write_serializer_class = serializers.WritableRackFurnitureTypeSerializer
@@ -171,10 +171,11 @@ class RackFurnitureTypeViewSet(ModelViewSet):
 # Rack Furniture
 #
 
-class RackFurnitureViewSet(ModelViewSet):
+class RackFurnitureViewSet(WritableSerializerMixin, CustomFieldModelViewSet):
     queryset = RackFurniture.objects.all()
     serializer_class = serializers.RackFurnitureSerializer
     filter_class = filters.RackFurnitureFilter
+    write_serializer_class = serializers.WritableRackFurnitureSerializer
 
 
 #

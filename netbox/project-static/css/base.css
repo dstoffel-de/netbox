@@ -322,7 +322,7 @@ ul.rack_near_face li.available div.add_links {
 ul.rack_near_face li.available:hover {
     background-color: #ffffff;
 }
-ul.rack_near_face li.available:hover a {
+ul.rack_near_face li.available:hover div.add_links {
     display: block;
 }
 ul.rack li.occupied a {

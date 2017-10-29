@@ -254,7 +254,7 @@ class RackFurnitureTypeSerializer(CustomFieldModelSerializer):
     class Meta:
         model = RackFurnitureType
         fields = [
-            'id', 'manufacturer', 'model', 'slug', 'part_number', 'u_height', 'is_full_depth',
+            'id', 'name', 'manufacturer', 'model', 'slug', 'part_number', 'u_height', 'is_full_depth',
             'comments', 'custom_fields', 'instance_count', 'color',
         ]
 
@@ -274,7 +274,7 @@ class WritableRackFurnitureTypeSerializer(CustomFieldModelSerializer):
     class Meta:
         model = RackFurnitureType
         fields = [
-            'id', 'manufacturer', 'model', 'slug', 'part_number', 'u_height', 'is_full_depth',
+            'id', 'name', 'manufacturer', 'model', 'slug', 'part_number', 'u_height', 'is_full_depth',
             'comments', 'custom_fields', 'color',
         ]
 
@@ -301,12 +301,37 @@ class RackFurnitureSerializer(CustomFieldModelSerializer):
 
 class NestedRackFurnitureSerializer(serializers.ModelSerializer):
     url = serializers.HyperlinkedIdentityField(view_name='dcim-api:rackfurniture-detail')
+    rack_furniture_type = NestedRackFurnitureTypeSerializer()
 
     class Meta:
         model = RackFurniture
         fields = [
             'id', 'url', 'rack_furniture_type'
         ]
+
+
+class WritableRackFurnitureSerializer(CustomFieldModelSerializer):
+
+    class Meta:
+        model = RackFurniture
+        fields = [
+            'id', 'rack_furniture_type', 'tenant', 'serial', 'asset_tag', 'site', 'rack',
+            'position', 'face', 'status', 'comments', 'custom_fields',
+        ]
+        validators = []
+
+    def validate(self, data):
+
+        # Validate uniqueness of (rack, position, face) since we omitted the automatically-created validator from Meta.
+        if data.get('rack') and data.get('position') and data.get('face'):
+            validator = UniqueTogetherValidator(queryset=RackFurniture.objects.all(), fields=('rack', 'position', 'face'))
+            validator.set_context(self)
+            validator(data)
+
+        # Enforce model validation
+        super(WritableRackFurnitureSerializer, self).validate(data)
+
+        return data
 
 
 #

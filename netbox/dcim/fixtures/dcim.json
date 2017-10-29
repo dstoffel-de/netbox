@@ -5889,5 +5889,46 @@
         "interface_b": 211,
         "connection_status": true
     }
+},
+{
+    "model": "dcim.rackfurnituretype",
+    "pk": 1,
+    "fields": {
+        "name": "1U Blank",
+        "slug": "1u-blank",
+        "is_full_depth": false,
+        "u_height": 1
+    }
+},
+{
+    "model": "dcim.rackfurnituretype",
+    "pk": 2,
+    "fields": {
+        "name": "2U Shelf",
+        "slug": "2u-shelf",
+        "u_height": 2
+    }
+},
+{
+    "model": "dcim.rackfurniture",
+    "pk": 1,
+    "fields": {
+        "rack_furniture_type": 1,
+        "site": 1,
+        "rack": 1,
+        "position": 5,
+        "face": 1
+    }
+},
+{
+    "model": "dcim.rackfurniture",
+    "pk": 2,
+    "fields": {
+        "rack_furniture_type": 2,
+        "site": 1,
+        "rack": 1,
+        "position": 7,
+        "face": 1
+    }
 }
 ]

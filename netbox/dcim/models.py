@@ -259,11 +259,26 @@ class Rack(CreatedUpdatedModel, CustomFieldModel):
         if self.pk:
             # Validate that Rack is tall enough to house the installed Devices
             top_device = Device.objects.filter(rack=self).exclude(position__isnull=True).order_by('-position').first()
-            if top_device:
-                min_height = top_device.position + top_device.device_type.u_height - 1
+            top_furniture = RackFurniture.objects.filter(rack=self).order_by('-position').first()
+
+            top_object = top_device
+
+            if top_furniture and not top_device:
+                top_object = top_furniture
+            elif not top_device and not top_furniture:
+                top_object = None
+            elif (top_furniture and top_device.position + top_device.device_type.u_height - 1 <
+                  top_furniture.position + top_furniture.rack_furniture_type.u_height - 1):
+                top_object = top_furniture
+
+            if top_object:
+                if isinstance(top_object, Device):
+                    min_height = top_object.position + top_object.device_type.u_height - 1
+                else:
+                    min_height = top_object.position + top_object.rack_furniture_type.u_height - 1
                 if self.u_height < min_height:
                     raise ValidationError({
-                        'u_height': "Rack must be at least {}U tall to house currently installed devices.".format(
+                        'u_height': "Rack must be at least {}U tall to house currently installed items.".format(
                             min_height
                         )
                     })
@@ -504,7 +519,7 @@ class RackFurnitureType(models.Model, CustomFieldModel):
     """
     name = models.CharField(max_length=50, unique=True)
     color = ColorField()
-    manufacturer = models.ForeignKey('Manufacturer', help_text="Manufacturer (optional)",
+    manufacturer = models.ForeignKey('Manufacturer', help_text="Manufacturer (optional)", blank=True,
                                      related_name='rack_furniture_types', on_delete=models.PROTECT, null=True)
     model = models.CharField(max_length=50, blank=True, help_text="Model number (optional)")
     slug = models.SlugField()
@@ -518,13 +533,6 @@ class RackFurnitureType(models.Model, CustomFieldModel):
     csv_headers = [
         'name', 'manufacturer', 'model', 'slug', 'part_number', 'u_height', 'is_full_depth', 'comments', 'color',
     ]
-
-    class Meta:
-        ordering = ['manufacturer', 'model', 'name']
-        unique_together = [
-            ['manufacturer', 'model'],
-            ['manufacturer', 'slug'],
-        ]
 
     def __str__(self):
         return self.name
@@ -560,7 +568,7 @@ class RackFurnitureType(models.Model, CustomFieldModel):
             for rf in RackFurniture.objects.filter(rack_furniture_type=self, position__isnull=False):
                 face_required = None if self.is_full_depth else rf.face
                 u_available = rf.rack.get_available_units(u_height=self.u_height, rack_face=face_required,
-                                                         exclude=[rf.pk])
+                                                          exclude_furniture=[rf.pk])
                 if rf.position not in u_available:
                     raise ValidationError({
                         'u_height': "Rack furniture {} in rack {} does not have sufficient space to accommodate a "
@@ -590,19 +598,17 @@ class RackFurniture(models.Model, CustomFieldModel):
         validators=[MinValueValidator(1)], verbose_name='Position (U)',
         help_text='The lowest-numbered unit occupied by the furniture'
     )
-    face = models.PositiveSmallIntegerField(blank=True, null=True, choices=RACK_FACE_CHOICES, verbose_name='Rack face')
+    face = models.PositiveSmallIntegerField(choices=RACK_FACE_CHOICES, verbose_name='Rack face')
     status = models.PositiveSmallIntegerField(choices=STATUS_CHOICES, default=STATUS_ACTIVE, verbose_name='Status')
     custom_field_values = GenericRelation(CustomFieldValue, content_type_field='obj_type', object_id_field='obj_id')
 
     csv_headers = [
         'manufacturer', 'model_name', 'tenant', 'serial', 'asset_tag', 'status', 'site', 'rack_group', 'rack_name',
-        'position', 'face', 
+        'position', 'face',
     ]
 
     class Meta:
         unique_together = ['rack', 'position', 'face']
-        verbose_name = "piece of rack furniture"
-        verbose_name_plural = "pieces of rack furniture"
 
     def __str__(self):
         return self.rack_furniture_type.name
@@ -642,7 +648,7 @@ class RackFurniture(models.Model, CustomFieldModel):
                 exclude_list = [self.pk] if self.pk else []
                 try:
                     available_units = self.rack.get_available_units(
-                        u_height=self.rack_furniture_type.u_height, rack_face=rack_face, exclude=exclude_list
+                        u_height=self.rack_furniture_type.u_height, rack_face=rack_face, exclude_furniture=exclude_list
                     )
                     if self.position and self.position not in available_units:
                         raise ValidationError({

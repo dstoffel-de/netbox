@@ -128,6 +128,12 @@
                         <a href="{% url 'dcim:device_list' %}?rack_id={{ rack.id }}">{{ rack.devices.count }}</a>
                     </td>
                 </tr>
+                <tr>
+                    <td>Furniture</td>
+                    <td>
+                        <a href="{% url 'dcim:rackfurniture_list' %}?rack_id={{ rack.id }}">{{ rack.furniture.count }}</a>
+                    </td>
+                </tr>
             </table>
         </div>
         <div class="panel panel-default">

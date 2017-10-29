@@ -51,6 +51,7 @@
                 </li>
             {% else %}
                 <li class="available{% if u.id in reserved_units.keys %} reserved{% endif %}">
+                    <div class="add_links">
                     {% if perms.dcim.add_device %}
                         <a href="{% url 'dcim:device_add' %}?site={{ rack.site.pk }}&rack={{ rack.pk }}&face={{ face_id }}&position={{ u.id }}" class="add_device"
                        {% if u.id in reserved_units.keys %}{% with reserved_units|getkey:u.id as resv %}
@@ -59,6 +60,7 @@
                        {% endwith %}{% endif %}
                         >add device</a>
                     {% endif %}
+                    <span>|</span>
                     {% if perms.dcim.add_rackfurniture %}
                         <a href="{% url 'dcim:rackfurniture_add' %}?site={{ rack.site.pk }}&rack={{ rack.pk }}&face={{ face_id }}&position={{ u.id }}" class="add_device"
                         {% if u.id in reserved_units.keys %}{% with reserved_units|getkey:u.id as resv %}
@@ -67,6 +69,7 @@
                         {% endwith %}{% endif %}
                         >add furniture</a>
                     {% endif %}
+                    </div>
                 </li>
             {% endif %}
         {% endfor %}

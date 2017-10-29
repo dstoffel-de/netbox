@@ -514,6 +514,7 @@ class RackFurnitureView(View):
             'rackfurniture': rackfurniture,
         })
 
+
 class RackFurnitureListView(ObjectListView):
     queryset = RackFurniture.objects.select_related('rack_furniture_type__manufacturer', 'tenant', 'site', 'rack')
     filter = filters.RackFurnitureFilter
