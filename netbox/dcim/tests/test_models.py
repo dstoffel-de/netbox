@@ -71,6 +71,20 @@ class RackTestCase(TestCase):
             ),
 
         }
+        self.rack_furniture_type = {
+            '1U Blank': RackFurnitureType.objects.create(
+                name='1U Blank',
+                is_full_depth=False
+            ),
+            '2U Shelf': RackFurnitureType.objects.create(
+                name='2U Shelf',
+                u_height=2
+            ),
+            '1U Shelf': RackFurnitureType.objects.create(
+                name='1U Shelf',
+                u_height=1
+            )
+        }
 
     def test_rack_device_outside_height(self):
 
@@ -92,6 +106,28 @@ class RackTestCase(TestCase):
             face=RACK_FACE_FRONT,
         )
         device1.save()
+
+        with self.assertRaises(ValidationError):
+            rack1.clean()
+
+    def test_rack_furniture_outside_height(self):
+
+        rack1 = Rack(
+            name='TestRack2',
+            facility_id='A102',
+            site=self.site1,
+            u_height=42
+        )
+        rack1.save()
+
+        furniture1 = RackFurniture(
+            rack_furniture_type=self.rack_furniture_type['1U Blank'],
+            site=self.site1,
+            rack=rack1,
+            position=43,
+            face=RACK_FACE_FRONT,
+        )
+        furniture1.save()
 
         with self.assertRaises(ValidationError):
             rack1.clean()
@@ -140,6 +176,34 @@ class RackTestCase(TestCase):
         for u in rack1_inventory_rear:
             self.assertIsNone(u['device'])
 
+    def test_mount_single_furniture(self):
+
+        furniture1 = RackFurniture(
+            rack_furniture_type=self.rack_furniture_type['1U Shelf'],
+            site=self.site1,
+            rack=self.rack,
+            position=10,
+            face=RACK_FACE_REAR,
+        )
+        furniture1.save()
+
+        # Validate rack height
+        self.assertEqual(list(self.rack.units), list(reversed(range(1, 43))))
+
+        # Validate inventory (front face)
+        rack1_inventory_front = self.rack.get_front_elevation()
+        self.assertEqual(rack1_inventory_front[-10]['furniture'], furniture1)
+        del(rack1_inventory_front[-10])
+        for u in rack1_inventory_front:
+            self.assertIsNone(u['furniture'])
+
+        # Validate inventory (rear face)
+        rack1_inventory_rear = self.rack.get_rear_elevation()
+        self.assertEqual(rack1_inventory_rear[-10]['furniture'], furniture1)
+        del(rack1_inventory_rear[-10])
+        for u in rack1_inventory_rear:
+            self.assertIsNone(u['furniture'])
+
     def test_mount_zero_ru(self):
         pdu = Device.objects.create(
             name='TestPDU',
@@ -151,6 +215,72 @@ class RackTestCase(TestCase):
             face=None,
         )
         self.assertTrue(pdu)
+
+    def test_mount_furniture_over_device(self):
+
+        rack1 = Rack(
+            name='TestRack2',
+            facility_id='A102',
+            site=self.site1,
+            u_height=42
+        )
+        rack1.save()
+
+        furniture1 = RackFurniture(
+            rack_furniture_type=self.rack_furniture_type['2U Shelf'],
+            site=self.site1,
+            rack=rack1,
+            position=9,
+            face=RACK_FACE_FRONT,
+        )
+        furniture1.save()
+
+        device1 = Device(
+            name='TestSwitch1',
+            device_type=DeviceType.objects.get(manufacturer__slug='acme', slug='ff2048'),
+            device_role=DeviceRole.objects.get(slug='switch'),
+            site=self.site1,
+            rack=rack1,
+            position=10,
+            face=RACK_FACE_FRONT,
+        )
+        device1.save()
+
+        with self.assertRaises(ValidationError):
+            device1.clean()
+
+    def test_mount_device_over_furniture(self):
+
+        rack1 = Rack(
+            name='TestRack2',
+            facility_id='A102',
+            site=self.site1,
+            u_height=42
+        )
+        rack1.save()
+
+        device1 = Device(
+            name='TestSwitch1',
+            device_type=DeviceType.objects.get(manufacturer__slug='acme', slug='ff2048'),
+            device_role=DeviceRole.objects.get(slug='switch'),
+            site=self.site1,
+            rack=rack1,
+            position=10,
+            face=RACK_FACE_FRONT,
+        )
+        device1.save()
+
+        furniture1 = RackFurniture(
+            rack_furniture_type=self.rack_furniture_type['2U Shelf'],
+            site=self.site1,
+            rack=rack1,
+            position=9,
+            face=RACK_FACE_FRONT,
+        )
+        furniture1.save()
+
+        with self.assertRaises(ValidationError):
+            furniture1.clean()
 
 
 class InterfaceTestCase(TestCase):

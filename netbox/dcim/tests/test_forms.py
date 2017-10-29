@@ -31,6 +31,19 @@ class DeviceTestCase(TestCase):
         self.assertTrue(test.is_valid(), test.fields['position'].choices)
         self.assertTrue(test.save())
 
+    def test_racked_furniture(self):
+        test = RackFurnitureForm(data={
+            'rack_furniture_type': get_id(RackFurnitureType, '1u-blank'),
+            'tenant': None,
+            'site': get_id(Site, 'test1'),
+            'rack': '1',
+            'face': RACK_FACE_FRONT,
+            'position': 40,
+            'status': STATUS_ACTIVE,
+        })
+        self.assertTrue(test.is_valid(), test.fields['position'].choices)
+        self.assertTrue(test.save())
+
     def test_racked_device_occupied(self):
         test = DeviceForm(data={
             'name': 'test',
@@ -43,6 +56,18 @@ class DeviceTestCase(TestCase):
             'face': RACK_FACE_FRONT,
             'position': 1,
             'platform': get_id(Platform, 'juniper-junos'),
+            'status': STATUS_ACTIVE,
+        })
+        self.assertFalse(test.is_valid())
+
+    def test_racked_furniture_occupied(self):
+        test = RackFurnitureForm(data={
+            'rack_furniture_type': get_id(RackFurnitureType, '2u-shelf'),
+            'tenant': None,
+            'site': get_id(Site, 'test1'),
+            'rack': '1',
+            'face': RACK_FACE_FRONT,
+            'position': 5,
             'status': STATUS_ACTIVE,
         })
         self.assertFalse(test.is_valid())

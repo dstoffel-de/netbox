@@ -10,7 +10,7 @@ from dcim.models import (
     ConsolePort, ConsolePortTemplate, ConsoleServerPort, ConsoleServerPortTemplate, Device, DeviceBay,
     DeviceBayTemplate, DeviceRole, DeviceType, IFACE_FF_LAG, Interface, InterfaceConnection, InterfaceTemplate,
     Manufacturer, InventoryItem, Platform, PowerPort, PowerPortTemplate, PowerOutlet, PowerOutletTemplate, Rack, RackGroup,
-    RackReservation, RackRole, Region, Site, SUBDEVICE_ROLE_CHILD, SUBDEVICE_ROLE_PARENT,
+    RackFurniture, RackFurnitureType, RackReservation, RackRole, Region, Site, SUBDEVICE_ROLE_CHILD, SUBDEVICE_ROLE_PARENT,
 )
 from extras.models import Graph, GRAPH_TYPE_INTERFACE, GRAPH_TYPE_SITE
 from users.models import Token
@@ -563,6 +563,186 @@ class ManufacturerTest(HttpStatusMixin, APITestCase):
 
         self.assertHttpStatus(response, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Manufacturer.objects.count(), 2)
+
+
+class RackFurnitureTypeTest(HttpStatusMixin, APITestCase):
+
+    def setUp(self):
+
+        user = User.objects.create(username='testuser', is_superuser=True)
+        token = Token.objects.create(user=user)
+        self.header = {'HTTP_AUTHORIZATION': 'Token {}'.format(token.key)}
+
+        self.rack_furniture_type1 = RackFurnitureType.objects.create(
+            name="1U Blank",
+            slug="1u-blank",
+            is_full_depth=False,
+            u_height=1,
+            color='ff0000'
+        )
+        self.manufacturer1 = Manufacturer.objects.create(name='Test Manufacturer 1', slug='test-manufacturer-1')
+        self.rack_furniture_type2 = RackFurnitureType.objects.create(
+            name="2U Shelf",
+            slug="2u-shelf",
+            manufacturer=self.manufacturer1,
+            u_height=2,
+            color='ff0000'
+        )
+
+    def test_get_rackfurnituretype(self):
+
+        url = reverse('dcim-api:rackfurnituretype-detail', kwargs={'pk': self.rack_furniture_type1.pk})
+        response = self.client.get(url, **self.header)
+
+        self.assertEqual(response.data['name'], self.rack_furniture_type1.name)
+
+    def test_list_rackfurnituretypes(self):
+
+        url = reverse('dcim-api:rackfurnituretype-list')
+        response = self.client.get(url, **self.header)
+
+        self.assertEqual(response.data['count'], 2)
+
+    def test_create_rackfurnituretype(self):
+
+        data = {
+            'name': '3U Wire Manager',
+            'slug': '3u-wire-manager',
+            'color': 'ff0000'
+        }
+
+        url = reverse('dcim-api:rackfurnituretype-list')
+        response = self.client.post(url, data, **self.header)
+
+        self.assertHttpStatus(response, status.HTTP_201_CREATED)
+        self.assertEqual(RackFurnitureType.objects.count(), 3)
+        rack_furniture_type3 = RackFurnitureType.objects.get(pk=response.data['id'])
+        self.assertEqual(rack_furniture_type3.name, data['name'])
+        self.assertEqual(rack_furniture_type3.slug, data['slug'])
+
+    def test_update_rackfurnituretype(self):
+
+        data = {
+            'name': 'New Name Furniture Type',
+            'color': "ffffff",
+            'manufacturer': self.manufacturer1.pk,
+            'model': 'Test Rack Furniture Type X',
+            'slug': 'test-type-x',
+        }
+
+        url = reverse('dcim-api:rackfurnituretype-detail', kwargs={'pk': self.rack_furniture_type1.pk})
+        response = self.client.put(url, data, **self.header)
+
+        self.assertHttpStatus(response, status.HTTP_200_OK)
+        self.assertEqual(RackFurnitureType.objects.count(), 2)
+        rack_furniture_type1 = RackFurnitureType.objects.get(pk=response.data['id'])
+        self.assertEqual(rack_furniture_type1.manufacturer_id, data['manufacturer'])
+        self.assertEqual(rack_furniture_type1.model, data['model'])
+        self.assertEqual(rack_furniture_type1.slug, data['slug'])
+        self.assertEqual(rack_furniture_type1.name, data['name'])
+        self.assertEqual(rack_furniture_type1.color, data['color'])
+
+    def test_delete_rackfurnituretype(self):
+
+        url = reverse('dcim-api:rackfurnituretype-detail', kwargs={'pk': self.rack_furniture_type1.pk})
+        response = self.client.delete(url, **self.header)
+
+        self.assertHttpStatus(response, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(RackFurnitureType.objects.count(), 1)
+
+
+class RackFurnitureTest(HttpStatusMixin, APITestCase):
+
+    def setUp(self):
+
+        user = User.objects.create(username='testuser', is_superuser=True)
+        token = Token.objects.create(user=user)
+        self.header = {'HTTP_AUTHORIZATION': 'Token {}'.format(token.key)}
+
+        self.rack_furniture_type1 = RackFurnitureType.objects.create(
+            name='1U Blank',
+            slug='1u-blank',
+            color='ffffff'
+        )
+        self.site1 = Site.objects.create(name="site1", slug="site1")
+        self.rack1 = Rack.objects.create(name="rack1", site=self.site1, u_height=42)
+        self.rack_furniture1 = RackFurniture.objects.create(
+            rack_furniture_type=self.rack_furniture_type1,
+            rack=self.rack1,
+            site=self.site1,
+            position=1,
+            face=1
+        )
+        self.rack_furniture2 = RackFurniture.objects.create(
+            rack_furniture_type=self.rack_furniture_type1,
+            rack=self.rack1,
+            site=self.site1,
+            position=2,
+            face=1
+        )
+
+    def test_get_rackfurniture(self):
+
+        url = reverse('dcim-api:rackfurniture-detail', kwargs={'pk': self.rack_furniture1.pk})
+        response = self.client.get(url, **self.header)
+
+        self.assertEqual(response.data['position'], self.rack_furniture1.position)
+
+    def test_list_rackfurnitures(self):
+
+        url = reverse('dcim-api:rackfurniture-list')
+        response = self.client.get(url, **self.header)
+
+        self.assertEqual(response.data['count'], 2)
+
+    def test_create_rackfurniture(self):
+
+        data = {
+            'rack_furniture_type': self.rack_furniture_type1.pk,
+            'rack': self.rack1.pk,
+            'site': self.site1.pk,
+            'position': 3,
+            'face': 1,
+            'status': 1
+        }
+
+        url = reverse('dcim-api:rackfurniture-list')
+        response = self.client.post(url, data, **self.header)
+
+        self.assertHttpStatus(response, status.HTTP_201_CREATED)
+        self.assertEqual(RackFurniture.objects.count(), 3)
+        rack_furniture3 = RackFurniture.objects.get(pk=response.data['id'])
+        self.assertEqual(rack_furniture3.position, data['position'])
+        self.assertEqual(rack_furniture3.site.id, data['site'])
+
+    def test_update_rackfurniture(self):
+
+        data = {
+            'rack_furniture_type': self.rack_furniture_type1.pk,
+            'rack': self.rack1.pk,
+            'site': self.site1.pk,
+            'position': 4,
+            'face': 1,
+            'status': 1,
+        }
+
+        url = reverse('dcim-api:rackfurniture-detail', kwargs={'pk': self.rack_furniture1.pk})
+        response = self.client.put(url, data, **self.header)
+
+        self.assertHttpStatus(response, status.HTTP_200_OK)
+        self.assertEqual(RackFurniture.objects.count(), 2)
+        rack_furniture1 = RackFurniture.objects.get(pk=response.data['id'])
+        self.assertEqual(rack_furniture1.rack.id, data['rack'])
+        self.assertEqual(rack_furniture1.site.id, data['site'])
+        self.assertEqual(rack_furniture1.position, data['position'])
+
+    def test_delete_rackfurniture(self):
+
+        url = reverse('dcim-api:rackfurniture-detail', kwargs={'pk': self.rack_furniture1.pk})
+        response = self.client.delete(url, **self.header)
+
+        self.assertHttpStatus(response, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(RackFurniture.objects.count(), 1)
 
 
 class DeviceTypeTest(HttpStatusMixin, APITestCase):
