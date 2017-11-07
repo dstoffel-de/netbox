@@ -11,7 +11,6 @@ from .models import (
     RackReservation, Region, Site,
 )
 
-
 REGION_LINK = """
 {% if record.get_children %}
     <span style="padding-left: {{ record.get_ancestors|length }}0px "><i class="fa fa-caret-right"></i>
