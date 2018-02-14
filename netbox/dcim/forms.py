@@ -705,12 +705,12 @@ class RackFurnitureFilterForm(BootstrapMixin, CustomFieldFilterForm):
     rack_id = FilterChoiceField(
         queryset=Rack.objects.annotate(filter_count=Count('furniture')),
         label='Rack',
-        null_option=(0, 'None'),
+        null_label='-- None --',
     )
     tenant = FilterChoiceField(
         queryset=Tenant.objects.annotate(filter_count=Count('furniture')),
         to_field_name='slug',
-        null_option=(0, 'None'),
+        null_label='-- None --',
     )
     manufacturer_id = FilterChoiceField(queryset=Manufacturer.objects.all(), label='Manufacturer')
     rack_furniture_type_id = FilterChoiceField(
