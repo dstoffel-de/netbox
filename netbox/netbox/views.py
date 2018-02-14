@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from collections import OrderedDict
 
+from django.db.models import Count
 from django.shortcuts import render
 from django.views.generic import View
 from rest_framework.response import Response
@@ -14,7 +15,7 @@ from circuits.tables import CircuitTable, ProviderTable
 from dcim.filters import DeviceFilter, DeviceTypeFilter, RackFilter, SiteFilter
 from dcim.models import ConsolePort, Device, DeviceType, InterfaceConnection, PowerPort, Rack, Site
 from dcim.tables import DeviceDetailTable, DeviceTypeTable, RackTable, SiteTable
-from extras.models import TopologyMap, UserAction
+from extras.models import ReportResult, TopologyMap, UserAction
 from ipam.filters import AggregateFilter, IPAddressFilter, PrefixFilter, VLANFilter, VRFFilter
 from ipam.models import Aggregate, IPAddress, Prefix, VLAN, VRF
 from ipam.tables import AggregateTable, IPAddressTable, PrefixTable, VLANTable, VRFTable
@@ -58,7 +59,7 @@ SEARCH_TYPES = OrderedDict((
         'url': 'dcim:rack_list',
     }),
     ('devicetype', {
-        'queryset': DeviceType.objects.select_related('manufacturer'),
+        'queryset': DeviceType.objects.select_related('manufacturer').annotate(instance_count=Count('instances')),
         'filter': DeviceTypeFilter,
         'table': DeviceTypeTable,
         'url': 'dcim:devicetype_list',
@@ -118,7 +119,7 @@ SEARCH_TYPES = OrderedDict((
     }),
     # Virtualization
     ('cluster', {
-        'queryset': Cluster.objects.all(),
+        'queryset': Cluster.objects.select_related('type', 'group'),
         'filter': ClusterFilter,
         'table': ClusterTable,
         'url': 'virtualization:cluster_list',
@@ -176,6 +177,7 @@ class HomeView(View):
             'search_form': SearchForm(),
             'stats': stats,
             'topology_maps': TopologyMap.objects.filter(site__isnull=True),
+            'report_results': ReportResult.objects.order_by('-created')[:10],
             'recent_activity': UserAction.objects.select_related('user')[:50]
         })
 

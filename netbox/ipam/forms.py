@@ -57,7 +57,7 @@ class VRFCSVForm(forms.ModelForm):
 
     class Meta:
         model = VRF
-        fields = ['name', 'rd', 'tenant', 'enforce_unique', 'description']
+        fields = VRF.csv_headers
         help_texts = {
             'name': 'VRF name',
         }
@@ -78,8 +78,11 @@ class VRFBulkEditForm(BootstrapMixin, CustomFieldBulkEditForm):
 class VRFFilterForm(BootstrapMixin, CustomFieldFilterForm):
     model = VRF
     q = forms.CharField(required=False, label='Search')
-    tenant = FilterChoiceField(queryset=Tenant.objects.annotate(filter_count=Count('vrfs')), to_field_name='slug',
-                               null_option=(0, None))
+    tenant = FilterChoiceField(
+        queryset=Tenant.objects.annotate(filter_count=Count('vrfs')),
+        to_field_name='slug',
+        null_label='-- None --'
+    )
 
 
 #
@@ -99,7 +102,7 @@ class RIRCSVForm(forms.ModelForm):
 
     class Meta:
         model = RIR
-        fields = ['name', 'slug', 'is_private']
+        fields = RIR.csv_headers
         help_texts = {
             'name': 'RIR name',
         }
@@ -141,7 +144,7 @@ class AggregateCSVForm(forms.ModelForm):
 
     class Meta:
         model = Aggregate
-        fields = ['prefix', 'rir', 'date_added', 'description']
+        fields = Aggregate.csv_headers
 
 
 class AggregateBulkEditForm(BootstrapMixin, CustomFieldBulkEditForm):
@@ -182,7 +185,7 @@ class RoleCSVForm(forms.ModelForm):
 
     class Meta:
         model = Role
-        fields = ['name', 'slug']
+        fields = Role.csv_headers
         help_texts = {
             'name': 'Role name',
         }
@@ -296,9 +299,7 @@ class PrefixCSVForm(forms.ModelForm):
 
     class Meta:
         model = Prefix
-        fields = [
-            'prefix', 'vrf', 'tenant', 'site', 'vlan_group', 'vlan_vid', 'status', 'role', 'is_pool', 'description',
-        ]
+        fields = Prefix.csv_headers
 
     def clean(self):
 
@@ -368,23 +369,23 @@ class PrefixFilterForm(BootstrapMixin, CustomFieldFilterForm):
         queryset=VRF.objects.annotate(filter_count=Count('prefixes')),
         to_field_name='rd',
         label='VRF',
-        null_option=(0, 'Global')
+        null_label='-- Global --'
     )
     tenant = FilterChoiceField(
         queryset=Tenant.objects.annotate(filter_count=Count('prefixes')),
         to_field_name='slug',
-        null_option=(0, 'None')
+        null_label='-- None --'
     )
     status = forms.MultipleChoiceField(choices=prefix_status_choices, required=False)
     site = FilterChoiceField(
         queryset=Site.objects.annotate(filter_count=Count('prefixes')),
         to_field_name='slug',
-        null_option=(0, 'None')
+        null_label='-- None --'
     )
     role = FilterChoiceField(
         queryset=Role.objects.annotate(filter_count=Count('prefixes')),
         to_field_name='slug',
-        null_option=(0, 'None')
+        null_label='-- None --'
     )
     expand = forms.BooleanField(required=False, label='Expand prefix hierarchy')
 
@@ -606,10 +607,7 @@ class IPAddressCSVForm(forms.ModelForm):
 
     class Meta:
         model = IPAddress
-        fields = [
-            'address', 'vrf', 'tenant', 'status', 'role', 'device', 'virtual_machine', 'interface_name', 'is_primary',
-            'description',
-        ]
+        fields = IPAddress.csv_headers
 
     def clean(self):
 
@@ -688,6 +686,11 @@ class IPAddressBulkEditForm(BootstrapMixin, CustomFieldBulkEditForm):
         nullable_fields = ['vrf', 'role', 'tenant', 'description']
 
 
+class IPAddressAssignForm(BootstrapMixin, forms.Form):
+    vrf = forms.ModelChoiceField(queryset=VRF.objects.all(), required=False, label='VRF', empty_label='Global')
+    address = forms.CharField(label='IP Address')
+
+
 def ipaddress_status_choices():
     status_counts = {}
     for status in IPAddress.objects.values('status').annotate(count=Count('status')).order_by('status'):
@@ -714,12 +717,12 @@ class IPAddressFilterForm(BootstrapMixin, CustomFieldFilterForm):
         queryset=VRF.objects.annotate(filter_count=Count('ip_addresses')),
         to_field_name='rd',
         label='VRF',
-        null_option=(0, 'Global')
+        null_label='-- Global --'
     )
     tenant = FilterChoiceField(
         queryset=Tenant.objects.annotate(filter_count=Count('ip_addresses')),
         to_field_name='slug',
-        null_option=(0, 'None')
+        null_label='-- None --'
     )
     status = forms.MultipleChoiceField(choices=ipaddress_status_choices, required=False)
     role = forms.MultipleChoiceField(choices=ipaddress_role_choices, required=False)
@@ -751,7 +754,7 @@ class VLANGroupCSVForm(forms.ModelForm):
 
     class Meta:
         model = VLANGroup
-        fields = ['site', 'name', 'slug']
+        fields = VLANGroup.csv_headers
         help_texts = {
             'name': 'Name of VLAN group',
         }
@@ -761,7 +764,7 @@ class VLANGroupFilterForm(BootstrapMixin, forms.Form):
     site = FilterChoiceField(
         queryset=Site.objects.annotate(filter_count=Count('vlan_groups')),
         to_field_name='slug',
-        null_option=(0, 'Global')
+        null_label='-- Global --'
     )
 
 
@@ -841,7 +844,7 @@ class VLANCSVForm(forms.ModelForm):
 
     class Meta:
         model = VLAN
-        fields = ['site', 'group_name', 'vid', 'name', 'tenant', 'status', 'role', 'description']
+        fields = VLAN.csv_headers
         help_texts = {
             'vid': 'Numeric VLAN ID (1-4095)',
             'name': 'VLAN name',
@@ -891,23 +894,23 @@ class VLANFilterForm(BootstrapMixin, CustomFieldFilterForm):
     site = FilterChoiceField(
         queryset=Site.objects.annotate(filter_count=Count('vlans')),
         to_field_name='slug',
-        null_option=(0, 'Global')
+        null_label='-- Global --'
     )
     group_id = FilterChoiceField(
         queryset=VLANGroup.objects.annotate(filter_count=Count('vlans')),
         label='VLAN group',
-        null_option=(0, 'None')
+        null_label='-- None --'
     )
     tenant = FilterChoiceField(
         queryset=Tenant.objects.annotate(filter_count=Count('vlans')),
         to_field_name='slug',
-        null_option=(0, 'None')
+        null_label='-- None --'
     )
     status = forms.MultipleChoiceField(choices=vlan_status_choices, required=False)
     role = FilterChoiceField(
         queryset=Role.objects.annotate(filter_count=Count('vlans')),
         to_field_name='slug',
-        null_option=(0, 'None')
+        null_label='-- None --'
     )
 
 

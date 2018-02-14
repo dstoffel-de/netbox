@@ -41,7 +41,7 @@ class ClusterTypeCSVForm(forms.ModelForm):
 
     class Meta:
         model = ClusterType
-        fields = ['name', 'slug']
+        fields = ClusterType.csv_headers
         help_texts = {
             'name': 'Name of cluster type',
         }
@@ -64,7 +64,7 @@ class ClusterGroupCSVForm(forms.ModelForm):
 
     class Meta:
         model = ClusterGroup
-        fields = ['name', 'slug']
+        fields = ClusterGroup.csv_headers
         help_texts = {
             'name': 'Name of cluster group',
         }
@@ -112,7 +112,7 @@ class ClusterCSVForm(forms.ModelForm):
 
     class Meta:
         model = Cluster
-        fields = ['name', 'type', 'group', 'site', 'comments']
+        fields = Cluster.csv_headers
 
 
 class ClusterBulkEditForm(BootstrapMixin, CustomFieldBulkEditForm):
@@ -137,13 +137,13 @@ class ClusterFilterForm(BootstrapMixin, CustomFieldFilterForm):
     group = FilterChoiceField(
         queryset=ClusterGroup.objects.annotate(filter_count=Count('clusters')),
         to_field_name='slug',
-        null_option=(0, 'None'),
+        null_label='-- None --',
         required=False,
     )
     site = FilterChoiceField(
         queryset=Site.objects.annotate(filter_count=Count('clusters')),
         to_field_name='slug',
-        null_option=(0, 'None'),
+        null_label='-- None --',
         required=False,
     )
 
@@ -306,7 +306,7 @@ class VirtualMachineCSVForm(forms.ModelForm):
 
     class Meta:
         model = VirtualMachine
-        fields = ['name', 'status', 'cluster', 'role', 'tenant', 'platform', 'vcpus', 'memory', 'disk', 'comments']
+        fields = VirtualMachine.csv_headers
 
 
 class VirtualMachineBulkEditForm(BootstrapMixin, CustomFieldBulkEditForm):
@@ -338,27 +338,37 @@ class VirtualMachineFilterForm(BootstrapMixin, CustomFieldFilterForm):
     cluster_group = FilterChoiceField(
         queryset=ClusterGroup.objects.all(),
         to_field_name='slug',
-        null_option=(0, 'None')
+        null_label='-- None --'
+    )
+    cluster_type = FilterChoiceField(
+        queryset=ClusterType.objects.all(),
+        to_field_name='slug',
+        null_label='-- None --'
     )
     cluster_id = FilterChoiceField(
         queryset=Cluster.objects.annotate(filter_count=Count('virtual_machines')),
         label='Cluster'
     )
+    site = FilterChoiceField(
+        queryset=Site.objects.annotate(filter_count=Count('clusters__virtual_machines')),
+        to_field_name='slug',
+        null_label='-- None --'
+    )
     role = FilterChoiceField(
         queryset=DeviceRole.objects.filter(vm_role=True).annotate(filter_count=Count('virtual_machines')),
         to_field_name='slug',
-        null_option=(0, 'None')
+        null_label='-- None --'
     )
     status = forms.MultipleChoiceField(choices=vm_status_choices, required=False)
     tenant = FilterChoiceField(
         queryset=Tenant.objects.annotate(filter_count=Count('virtual_machines')),
         to_field_name='slug',
-        null_option=(0, 'None')
+        null_label='-- None --'
     )
     platform = FilterChoiceField(
         queryset=Platform.objects.annotate(filter_count=Count('virtual_machines')),
         to_field_name='slug',
-        null_option=(0, 'None')
+        null_label='-- None --'
     )
 
 

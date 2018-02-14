@@ -111,7 +111,7 @@ def example_choices(field, arg=3):
         if len(examples) == arg:
             examples.append('etc.')
             break
-        if not id:
+        if not id or not label:
             continue
         examples.append(label)
     return ', '.join(examples) or 'None'
@@ -132,7 +132,7 @@ def querystring(request, **kwargs):
             querydict[k] = v
         elif k in querydict:
             querydict.pop(k)
-    querystring = querydict.urlencode()
+    querystring = querydict.urlencode(safe='/')
     if querystring:
         return '?' + querystring
     else:

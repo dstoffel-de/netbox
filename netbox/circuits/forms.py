@@ -43,7 +43,7 @@ class ProviderCSVForm(forms.ModelForm):
 
     class Meta:
         model = Provider
-        fields = ['name', 'slug', 'asn', 'account', 'portal_url', 'comments']
+        fields = Provider.csv_headers
         help_texts = {
             'name': 'Provider name',
             'asn': '32-bit autonomous system number',
@@ -89,7 +89,7 @@ class CircuitTypeCSVForm(forms.ModelForm):
 
     class Meta:
         model = CircuitType
-        fields = ['name', 'slug']
+        fields = CircuitType.csv_headers
         help_texts = {
             'name': 'Name of circuit type',
         }
@@ -174,7 +174,7 @@ class CircuitFilterForm(BootstrapMixin, CustomFieldFilterForm):
     tenant = FilterChoiceField(
         queryset=Tenant.objects.annotate(filter_count=Count('circuits')),
         to_field_name='slug',
-        null_option=(0, 'None')
+        null_label='-- None --'
     )
     site = FilterChoiceField(
         queryset=Site.objects.annotate(filter_count=Count('circuit_terminations')),

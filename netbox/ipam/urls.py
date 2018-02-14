@@ -51,6 +51,7 @@ urlpatterns = [
     url(r'^prefixes/(?P<pk>\d+)/$', views.PrefixView.as_view(), name='prefix'),
     url(r'^prefixes/(?P<pk>\d+)/edit/$', views.PrefixEditView.as_view(), name='prefix_edit'),
     url(r'^prefixes/(?P<pk>\d+)/delete/$', views.PrefixDeleteView.as_view(), name='prefix_delete'),
+    url(r'^prefixes/(?P<pk>\d+)/prefixes/$', views.PrefixPrefixesView.as_view(), name='prefix_prefixes'),
     url(r'^prefixes/(?P<pk>\d+)/ip-addresses/$', views.PrefixIPAddressesView.as_view(), name='prefix_ipaddresses'),
 
     # IP addresses
@@ -60,6 +61,7 @@ urlpatterns = [
     url(r'^ip-addresses/import/$', views.IPAddressBulkImportView.as_view(), name='ipaddress_import'),
     url(r'^ip-addresses/edit/$', views.IPAddressBulkEditView.as_view(), name='ipaddress_bulk_edit'),
     url(r'^ip-addresses/delete/$', views.IPAddressBulkDeleteView.as_view(), name='ipaddress_bulk_delete'),
+    url(r'^ip-addresses/assign/$', views.IPAddressAssignView.as_view(), name='ipaddress_assign'),
     url(r'^ip-addresses/(?P<pk>\d+)/$', views.IPAddressView.as_view(), name='ipaddress'),
     url(r'^ip-addresses/(?P<pk>\d+)/edit/$', views.IPAddressEditView.as_view(), name='ipaddress_edit'),
     url(r'^ip-addresses/(?P<pk>\d+)/delete/$', views.IPAddressDeleteView.as_view(), name='ipaddress_delete'),

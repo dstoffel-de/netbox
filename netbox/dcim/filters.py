@@ -22,6 +22,10 @@ from .models import (
 
 
 class RegionFilter(django_filters.FilterSet):
+    q = django_filters.CharFilter(
+        method='search',
+        label='Search',
+    )
     parent_id = django_filters.ModelMultipleChoiceFilter(
         queryset=Region.objects.all(),
         label='Parent region (ID)',
@@ -36,6 +40,15 @@ class RegionFilter(django_filters.FilterSet):
     class Meta:
         model = Region
         fields = ['name', 'slug']
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        qs_filter = (
+            Q(name__icontains=value) |
+            Q(slug__icontains=value)
+        )
+        return queryset.filter(qs_filter)
 
 
 class SiteFilter(CustomFieldFilterSet, django_filters.FilterSet):
@@ -163,7 +176,7 @@ class RackFilter(CustomFieldFilterSet, django_filters.FilterSet):
 
     class Meta:
         model = Rack
-        fields = ['serial', 'type', 'width', 'u_height', 'desc_units']
+        fields = ['name', 'serial', 'type', 'width', 'u_height', 'desc_units']
 
     def search(self, queryset, name, value):
         if not value.strip():
@@ -445,7 +458,7 @@ class DeviceRoleFilter(django_filters.FilterSet):
 
     class Meta:
         model = DeviceRole
-        fields = ['name', 'slug', 'color']
+        fields = ['name', 'slug', 'color', 'vm_role']
 
 
 class PlatformFilter(django_filters.FilterSet):
@@ -540,7 +553,8 @@ class DeviceFilter(CustomFieldFilterSet, django_filters.FilterSet):
         label='Device model (slug)',
     )
     status = django_filters.MultipleChoiceFilter(
-        choices=STATUS_CHOICES
+        choices=STATUS_CHOICES,
+        null_value=None
     )
     is_full_depth = django_filters.BooleanFilter(
         name='device_type__is_full_depth',
@@ -569,7 +583,7 @@ class DeviceFilter(CustomFieldFilterSet, django_filters.FilterSet):
 
     class Meta:
         model = Device
-        fields = ['serial']
+        fields = ['serial', 'position']
 
     def search(self, queryset, name, value):
         if not value.strip():
@@ -714,6 +728,10 @@ class DeviceBayFilter(DeviceComponentFilterSet):
 
 
 class InventoryItemFilter(DeviceComponentFilterSet):
+    q = django_filters.CharFilter(
+        method='search',
+        label='Search',
+    )
     parent_id = django_filters.ModelMultipleChoiceFilter(
         queryset=InventoryItem.objects.all(),
         label='Parent inventory item (ID)',
@@ -732,7 +750,19 @@ class InventoryItemFilter(DeviceComponentFilterSet):
 
     class Meta:
         model = InventoryItem
-        fields = ['name', 'part_id', 'serial', 'discovered']
+        fields = ['name', 'part_id', 'serial', 'asset_tag', 'discovered']
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        qs_filter = (
+            Q(name__icontains=value) |
+            Q(part_id__icontains=value) |
+            Q(serial__iexact=value) |
+            Q(asset_tag__iexact=value) |
+            Q(description__icontains=value)
+        )
+        return queryset.filter(qs_filter)
 
 
 class ConsoleConnectionFilter(django_filters.FilterSet):

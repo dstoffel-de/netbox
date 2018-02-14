@@ -4,7 +4,7 @@ import netaddr
 from django.conf import settings
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.db.models import Count, Q
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import View
 from django_tables2 import RequestConfig
@@ -454,9 +454,6 @@ class PrefixView(View):
         except Aggregate.DoesNotExist:
             aggregate = None
 
-        # Count child IP addresses
-        ipaddress_count = prefix.get_child_ips().count()
-
         # Parent prefixes table
         parent_prefixes = Prefix.objects.filter(
             Q(vrf=prefix.vrf) | Q(vrf__isnull=True)
@@ -479,23 +476,38 @@ class PrefixView(View):
         duplicate_prefix_table = tables.PrefixTable(list(duplicate_prefixes), orderable=False)
         duplicate_prefix_table.exclude = ('vrf',)
 
+        return render(request, 'ipam/prefix.html', {
+            'prefix': prefix,
+            'aggregate': aggregate,
+            'parent_prefix_table': parent_prefix_table,
+            'duplicate_prefix_table': duplicate_prefix_table,
+        })
+
+
+class PrefixPrefixesView(View):
+
+    def get(self, request, pk):
+
+        prefix = get_object_or_404(Prefix.objects.all(), pk=pk)
+
         # Child prefixes table
-        child_prefixes = Prefix.objects.filter(
-            vrf=prefix.vrf, prefix__net_contained=str(prefix.prefix)
-        ).select_related(
+        child_prefixes = prefix.get_child_prefixes().select_related(
             'site', 'vlan', 'role',
         ).annotate_depth(limit=0)
+
+        # Annotate available prefixes
         if child_prefixes:
             child_prefixes = add_available_prefixes(prefix.prefix, child_prefixes)
-        child_prefix_table = tables.PrefixDetailTable(child_prefixes)
+
+        prefix_table = tables.PrefixDetailTable(child_prefixes)
         if request.user.has_perm('ipam.change_prefix') or request.user.has_perm('ipam.delete_prefix'):
-            child_prefix_table.columns.show('pk')
+            prefix_table.columns.show('pk')
 
         paginate = {
             'klass': EnhancedPaginator,
             'per_page': request.GET.get('per_page', settings.PAGINATE_COUNT)
         }
-        RequestConfig(request, paginate).configure(child_prefix_table)
+        RequestConfig(request, paginate).configure(prefix_table)
 
         # Compile permissions list for rendering the object table
         permissions = {
@@ -504,16 +516,12 @@ class PrefixView(View):
             'delete': request.user.has_perm('ipam.delete_prefix'),
         }
 
-        return render(request, 'ipam/prefix.html', {
+        return render(request, 'ipam/prefix_prefixes.html', {
             'prefix': prefix,
-            'aggregate': aggregate,
-            'ipaddress_count': ipaddress_count,
-            'parent_prefix_table': parent_prefix_table,
-            'child_prefix_table': child_prefix_table,
-            'duplicate_prefix_table': duplicate_prefix_table,
-            'bulk_querystring': 'vrf_id={}&within={}'.format(prefix.vrf or '0', prefix.prefix),
+            'first_available_prefix': prefix.get_first_available_prefix(),
+            'prefix_table': prefix_table,
             'permissions': permissions,
-            'return_url': prefix.get_absolute_url(),
+            'bulk_querystring': 'vrf_id={}&within={}'.format(prefix.vrf.pk if prefix.vrf else '0', prefix.prefix),
         })
 
 
@@ -548,9 +556,10 @@ class PrefixIPAddressesView(View):
 
         return render(request, 'ipam/prefix_ipaddresses.html', {
             'prefix': prefix,
+            'first_available_ip': prefix.get_first_available_ip(),
             'ip_table': ip_table,
             'permissions': permissions,
-            'bulk_querystring': 'vrf_id={}&parent={}'.format(prefix.vrf or '0', prefix.prefix),
+            'bulk_querystring': 'vrf_id={}&parent={}'.format(prefix.vrf.pk if prefix.vrf else '0', prefix.prefix),
         })
 
 
@@ -684,6 +693,51 @@ class IPAddressCreateView(PermissionRequiredMixin, ObjectEditView):
 
 class IPAddressEditView(IPAddressCreateView):
     permission_required = 'ipam.change_ipaddress'
+
+
+class IPAddressAssignView(PermissionRequiredMixin, View):
+    """
+    Search for IPAddresses to be assigned to an Interface.
+    """
+    permission_required = 'ipam.change_ipaddress'
+
+    def dispatch(self, request, *args, **kwargs):
+
+        # Redirect user if an interface has not been provided
+        if 'interface' not in request.GET:
+            return redirect('ipam:ipaddress_add')
+
+        return super(IPAddressAssignView, self).dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+
+        form = forms.IPAddressAssignForm()
+
+        return render(request, 'ipam/ipaddress_assign.html', {
+            'form': form,
+            'return_url': request.GET.get('return_url', ''),
+        })
+
+    def post(self, request):
+
+        form = forms.IPAddressAssignForm(request.POST)
+        table = None
+
+        if form.is_valid():
+
+            queryset = IPAddress.objects.select_related(
+                'vrf', 'tenant', 'interface__device', 'interface__virtual_machine'
+            ).filter(
+                vrf=form.cleaned_data['vrf'],
+                address__net_host=form.cleaned_data['address'],
+            )
+            table = tables.IPAddressAssignTable(queryset)
+
+        return render(request, 'ipam/ipaddress_assign.html', {
+            'form': form,
+            'table': table,
+            'return_url': request.GET.get('return_url', ''),
+        })
 
 
 class IPAddressDeleteView(PermissionRequiredMixin, ObjectDeleteView):
