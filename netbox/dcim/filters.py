@@ -309,11 +309,11 @@ class RackFurnitureFilter(CustomFieldFilterSet, django_filters.FilterSet):
         queryset=RackFurnitureType.objects.all(),
         label='Rack furniture type (ID)',
     )
-    tenant_id = NullableModelMultipleChoiceFilter(
+    tenant_id = django_filters.ModelMultipleChoiceFilter(
         queryset=Tenant.objects.all(),
         label='Tenant (ID)',
     )
-    tenant = NullableModelMultipleChoiceFilter(
+    tenant = django_filters.ModelMultipleChoiceFilter(
         name='tenant',
         queryset=Tenant.objects.all(),
         to_field_name='slug',
@@ -335,7 +335,7 @@ class RackFurnitureFilter(CustomFieldFilterSet, django_filters.FilterSet):
         queryset=RackGroup.objects.all(),
         label='Rack group (ID)',
     )
-    rack_id = NullableModelMultipleChoiceFilter(
+    rack_id = django_filters.ModelMultipleChoiceFilter(
         name='rack',
         queryset=Rack.objects.all(),
         label='Rack (ID)',
